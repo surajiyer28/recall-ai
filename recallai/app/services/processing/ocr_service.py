@@ -1,9 +1,11 @@
 import logging
+import concurrent.futures
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 _tesseract_available: bool | None = None
+_OCR_TIMEOUT_SEC = 15  # max seconds per image
 
 
 def _check_tesseract() -> bool:
@@ -23,6 +25,15 @@ def _check_tesseract() -> bool:
     return _tesseract_available
 
 
+def _run_ocr(image_path: str) -> str:
+    """Blocking OCR call — meant to be run in a thread with a timeout."""
+    import pytesseract
+    from PIL import Image
+
+    image = Image.open(image_path)
+    return pytesseract.image_to_string(image).strip()
+
+
 def extract_text_from_image(image_path: str) -> str:
     """Extract text from an image using Tesseract OCR. Returns empty string on failure."""
     if not _check_tesseract():
@@ -34,12 +45,13 @@ def extract_text_from_image(image_path: str) -> str:
         return ""
 
     try:
-        import pytesseract
-        from PIL import Image
-
-        image = Image.open(image_path)
-        text = pytesseract.image_to_string(image).strip()
-        return text
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(_run_ocr, image_path)
+            text = future.result(timeout=_OCR_TIMEOUT_SEC)
+            return text
+    except concurrent.futures.TimeoutError:
+        logger.warning("OCR timed out after %ds for %s, skipping", _OCR_TIMEOUT_SEC, image_path)
+        return ""
     except Exception as e:
         logger.error("OCR failed for %s: %s", image_path, e)
         return ""

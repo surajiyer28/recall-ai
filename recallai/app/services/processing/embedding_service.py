@@ -1,5 +1,4 @@
 import logging
-from pathlib import Path
 
 from app.config import get_settings
 
@@ -42,19 +41,6 @@ class EmbeddingService:
         )
         return list(response.text_embedding)
 
-    def embed_image(self, image_path: str) -> list[float]:
-        """Embed image into 1408-d vector using Google MME2."""
-        from vertexai.vision_models import Image as VertexImage
-
-        path = Path(image_path)
-        if not path.exists():
-            logger.warning("Image not found for embedding: %s", image_path)
-            return [0.0] * EMBEDDING_DIM
-
-        image = VertexImage.load_from_file(image_path)
-        response = self.model.get_embeddings(image=image, dimension=EMBEDDING_DIM)
-        return list(response.image_embedding)
-
     def embed_texts_batch(self, texts: list[str]) -> list[list[float]]:
         """Embed multiple texts. Batches into groups of MAX_BATCH_SIZE."""
         all_embeddings = []
@@ -65,15 +51,6 @@ class EmbeddingService:
                 all_embeddings.append(emb)
         return all_embeddings
 
-    def embed_images_batch(self, image_paths: list[str]) -> list[list[float]]:
-        """Embed multiple images. Batches into groups of MAX_BATCH_SIZE."""
-        all_embeddings = []
-        for i in range(0, len(image_paths), MAX_BATCH_SIZE):
-            batch = image_paths[i : i + MAX_BATCH_SIZE]
-            for path in batch:
-                emb = self.embed_image(path)
-                all_embeddings.append(emb)
-        return all_embeddings
 
 
 _embedding_service: EmbeddingService | None = None

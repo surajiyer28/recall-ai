@@ -1,7 +1,6 @@
 import logging
 import tempfile
 from datetime import datetime, timezone
-from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,11 +19,12 @@ from app.services.processing.ner_service import (
 from app.services.processing.summarization_service import get_summarization_service
 from app.services.processing.metadata_enrichment import enrich_metadata
 from app.services.processing.frame_extractor import (
-    extract_audio_track,
     extract_frames,
+    split_video_chunks,
     cleanup_extracted_files,
 )
 from app.services.processing.ocr_service import extract_text_from_images
+from app.services.processing.vision_service import get_vision_service
 from app.services.storage.vector_store import add_memory_vectors
 from app.utils.file_handling import delete_file
 
@@ -184,8 +184,9 @@ async def process_audio(db: AsyncSession, session_id: str, audio_path: str) -> d
 
 async def process_video(db: AsyncSession, session_id: str, video_path: str) -> dict:
     """
-    Full video pipeline: extract frames + audio -> Whisper STT -> OCR on frames
-    -> embed transcript + frames + OCR. Raw video deleted after extraction.
+    Full video pipeline: Gemini Flash captions video chunks (vision + audio),
+    OCR on extracted frames as safety net, embed all text.
+    No Whisper or audio extraction needed — Gemini handles speech in video.
     """
     result = {
         "transcript": "", "duration_sec": 0, "frame_count": 0,
@@ -198,62 +199,72 @@ async def process_video(db: AsyncSession, session_id: str, video_path: str) -> d
 
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
-            audio_path = extract_audio_track(video_path, tmpdir)
-            frame_paths = extract_frames(video_path, tmpdir)
-            result["frame_count"] = len(frame_paths)
+            frame_paths = []
+            video_chunks = []
+
+            # Split video into <=60s chunks for Gemini captioning
+            try:
+                video_chunks = split_video_chunks(video_path, tmpdir)
+            except Exception as e:
+                logger.error("Video chunking failed for %s: %s", session_id, e)
+                video_chunks = [video_path]
+
+            # Extract frames for OCR safety net
+            try:
+                frame_paths = extract_frames(video_path, tmpdir)
+                result["frame_count"] = len(frame_paths)
+            except Exception as e:
+                logger.error("Frame extraction failed for video %s: %s", session_id, e)
 
             if frame_job:
-                await _update_job_status(db, frame_job, "done")
+                status = "done" if video_chunks else "failed"
+                await _update_job_status(db, frame_job, status)
 
-            delete_file(video_path)
+            # Caption each video chunk with Gemini Flash (handles vision + audio)
+            captions = []
+            try:
+                vision_svc = get_vision_service()
+                for chunk_path in video_chunks:
+                    caption = vision_svc.caption_video(chunk_path)
+                    if caption:
+                        captions.append(caption)
+            except Exception as e:
+                logger.error("Video captioning failed for %s: %s", session_id, e)
 
-            if audio_path:
-                whisper_job = await _find_job(db, session_id, "whisper")
-                if whisper_job:
-                    await _update_job_status(db, whisper_job, "in_flight")
-                try:
-                    whisper = get_whisper_service()
-                    stt_result = await whisper.transcribe(audio_path)
-                    result["transcript"] = stt_result["transcript"]
-                    result["duration_sec"] = stt_result["duration_sec"]
+            result["transcript"] = "\n\n".join(captions)
 
-                    memory = await _get_memory_for_session(db, session_id)
-                    if memory:
-                        memory.transcript = stt_result["transcript"]
-                        memory.duration_sec = stt_result["duration_sec"]
-                        await db.commit()
+            memory = await _get_memory_for_session(db, session_id)
+            if memory and result["transcript"]:
+                memory.transcript = result["transcript"]
+                await db.commit()
 
-                    if whisper_job:
-                        await _update_job_status(db, whisper_job, "done")
-                except Exception as e:
-                    logger.error("Whisper failed for video %s: %s", session_id, e)
-                    if whisper_job:
-                        await _update_job_status(db, whisper_job, "failed")
-
+            # OCR on extracted frames as safety net
             if frame_paths:
                 ocr_texts = extract_text_from_images(frame_paths)
                 result["ocr_texts"] = ocr_texts
 
+            # Embed: caption text + OCR text
             embed_job = await _find_job(db, session_id, "embedding")
             if embed_job:
                 await _update_job_status(db, embed_job, "in_flight")
             try:
                 embedding_svc = get_embedding_service()
                 text_emb = None
-                image_embs = None
                 ocr_embs = None
 
-                if result["transcript"]:
-                    text_emb = embedding_svc.embed_text(result["transcript"])
-
-                if frame_paths:
-                    image_embs = embedding_svc.embed_images_batch(frame_paths)
-
+                # Combine caption + OCR for the main text embedding
+                all_text = result["transcript"]
                 ocr_values = list(result["ocr_texts"].values())
                 if ocr_values:
+                    all_text += "\n" + "\n".join(ocr_values)
                     ocr_embs = embedding_svc.embed_texts_batch(ocr_values)
 
-                cleanup_extracted_files(frame_paths)
+                if all_text.strip():
+                    text_emb = embedding_svc.embed_text(all_text)
+
+                # Cleanup temp files
+                chunks_to_clean = [c for c in video_chunks if c != video_path]
+                cleanup_extracted_files(chunks_to_clean + frame_paths)
 
                 memory = await _get_memory_for_session(db, session_id)
                 if memory:
@@ -262,7 +273,6 @@ async def process_video(db: AsyncSession, session_id: str, video_path: str) -> d
                         session_id=session_id,
                         timestamp=memory.created_at,
                         text_embedding=text_emb,
-                        image_embeddings=image_embs,
                         ocr_embeddings=ocr_embs,
                     )
                     result["vectors_stored"] = count
@@ -273,6 +283,8 @@ async def process_video(db: AsyncSession, session_id: str, video_path: str) -> d
                 logger.error("Embedding failed for video %s: %s", session_id, e)
                 if embed_job:
                     await _update_job_status(db, embed_job, "failed")
+
+            delete_file(video_path)
 
     except Exception as e:
         logger.error("Video processing failed for session %s: %s", session_id, e)
@@ -292,19 +304,28 @@ async def process_images(
     db: AsyncSession, session_id: str, image_paths: list[str]
 ) -> dict:
     """
-    Image pipeline: OCR on each image -> embed images + OCR text.
-    Standalone images are retained (not deleted) per privacy spec.
+    Image pipeline: Gemini Flash captions each image + OCR as safety net,
+    embed all text. Standalone images are retained (not deleted) per privacy spec.
     """
-    result = {"ocr_texts": {}, "image_paths": image_paths, "vectors_stored": 0}
+    result = {"ocr_texts": {}, "captions": {}, "image_paths": image_paths, "vectors_stored": 0}
 
+    # Caption images with Gemini Flash
+    try:
+        vision_svc = get_vision_service()
+        for img_path in image_paths:
+            caption = vision_svc.caption_image(img_path)
+            if caption:
+                result["captions"][img_path] = caption
+    except Exception as e:
+        logger.error("Image captioning failed for session %s: %s", session_id, e)
+
+    # OCR as safety net
     ocr_job = await _find_job(db, session_id, "ocr")
     if ocr_job:
         await _update_job_status(db, ocr_job, "in_flight")
-
     try:
         ocr_texts = extract_text_from_images(image_paths)
         result["ocr_texts"] = ocr_texts
-
         if ocr_job:
             await _update_job_status(db, ocr_job, "done")
     except Exception as e:
@@ -312,16 +333,27 @@ async def process_images(
         if ocr_job:
             await _update_job_status(db, ocr_job, "failed")
 
+    # Combine captions + OCR into a single text, then embed
+    caption_text = "\n".join(result["captions"].values())
+    ocr_text = "\n".join(result["ocr_texts"].values())
+    all_text = "\n".join(t for t in [caption_text, ocr_text] if t)
+
+    # Store caption as transcript on the memory
+    memory = await _get_memory_for_session(db, session_id)
+    if memory and caption_text:
+        memory.transcript = caption_text
+        await db.commit()
+
     embed_job = await _find_job(db, session_id, "embedding")
     if embed_job:
         await _update_job_status(db, embed_job, "in_flight")
     try:
         embedding_svc = get_embedding_service()
-        image_embs = None
+        text_emb = None
         ocr_embs = None
 
-        if image_paths:
-            image_embs = embedding_svc.embed_images_batch(image_paths)
+        if all_text.strip():
+            text_emb = embedding_svc.embed_text(all_text)
 
         ocr_values = list(result["ocr_texts"].values())
         if ocr_values:
@@ -333,7 +365,7 @@ async def process_images(
                 memory_id=memory.id,
                 session_id=session_id,
                 timestamp=memory.created_at,
-                image_embeddings=image_embs,
+                text_embedding=text_emb,
                 ocr_embeddings=ocr_embs,
             )
             result["vectors_stored"] = count
@@ -345,9 +377,9 @@ async def process_images(
         if embed_job:
             await _update_job_status(db, embed_job, "failed")
 
-    ocr_text = "\n".join(result["ocr_texts"].values()) if result["ocr_texts"] else ""
-    if ocr_text:
-        ner_result = await _run_ner_and_summarize(db, session_id, ocr_text)
+    # NER + summarize on combined text (always runs, not just when OCR has text)
+    if all_text.strip():
+        ner_result = await _run_ner_and_summarize(db, session_id, all_text)
         result.update(ner_result)
 
     return result
@@ -362,18 +394,29 @@ async def run_pipeline(
     """
     logger.info("Starting pipeline for session %s (type: %s)", session_id, media_type)
 
-    if media_type == "audio":
-        result = await process_audio(db, session_id, payload_path)
-    elif media_type == "video":
-        result = await process_video(db, session_id, payload_path)
-    elif media_type == "image":
-        memory = await _get_memory_for_session(db, session_id)
-        image_paths = []
-        if memory and memory.image_refs and "paths" in memory.image_refs:
-            image_paths = memory.image_refs["paths"]
-        result = await process_images(db, session_id, image_paths)
-    else:
-        raise ValueError(f"Unknown media type: {media_type}")
+    try:
+        if media_type == "audio":
+            result = await process_audio(db, session_id, payload_path)
+        elif media_type == "video":
+            result = await process_video(db, session_id, payload_path)
+        elif media_type == "image":
+            memory = await _get_memory_for_session(db, session_id)
+            image_paths = []
+            if memory and memory.image_refs and "paths" in memory.image_refs:
+                image_paths = memory.image_refs["paths"]
+            result = await process_images(db, session_id, image_paths)
+        else:
+            raise ValueError(f"Unknown media type: {media_type}")
+    except Exception as e:
+        logger.error("Pipeline failed for session %s: %s", session_id, e)
+        result = {}
+        # Mark session as failed so it doesn't stay stuck in "processing"
+        session = await db.get(CaptureSession, session_id)
+        if session and session.status == "processing":
+            session.status = "failed"
+            session.ended_at = datetime.now(timezone.utc)
+            await db.commit()
+        return result
 
     session = await db.get(CaptureSession, session_id)
     if session and session.status == "processing":

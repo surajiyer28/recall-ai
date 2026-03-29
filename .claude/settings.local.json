@@ -15,7 +15,9 @@
       "Bash(bash \"/c/Users/Admin/Documents/Work Projects/Github/claude-hackathon/test_audio.sh\" \"/c/Users/Admin/OneDrive/Desktop/test_audio.ogg\" 2>&1)",
       "Bash(xargs grep:*)",
       "Bash(curl:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(grep -r \"hang\\\\|stuck\\\\|block\\\\|freeze\\\\|infinite\\\\|wait\" 'C:/Users/Admin/Documents/Work Projects/Github/claude-hackathon/recallai' --include=*.py)",
+      "Bash(python3 -c \"import pytesseract; help\\(pytesseract.image_to_string\\)\")"
     ]
   }
 }

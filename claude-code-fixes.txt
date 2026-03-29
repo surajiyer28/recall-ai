@@ -1,0 +1,102 @@
+Claude Code Session — Bug Fixes (incomplete, hit rate limit)
+=============================================================
+Date: 2026-03-29
+
+User reported two issues:
+1. Frontend error: "Unexpected text node: . A text node cannot be a child of a <View>."
+2. Video processing pipeline stuck — memories stay as "Processing", no location info, chat can't answer queries about recorded video content.
+
+---
+
+ISSUE 1: Text Node Error in MemoryDetailScreen
+-----------------------------------------------
+
+Component Stack:
+  at ScrollView#render (node_modules/react-native-web/dist/exports/ScrollView/index.js)
+  at React.forwardRef$argument_0 (node_modules/react-native-web/dist/exports/ScrollView/index.js)
+  at MemoryDetailScreen (app/memory/[id].tsx)
+  at WrappedScreenComponent (node_modules/expo-router/build/useScreens.js)
+  at BaseRoute (node_modules/expo-router/build/useScreens.js)
+  at SceneView (node_modules/@react-navigation/core/lib/module/SceneView.js)
+  ...
+
+Root Cause:
+  Conditional rendering with && can produce falsy numeric values (0) that React
+  renders as text nodes inside <View>/<ScrollView>. Specifically:
+  - {memory.duration_sec != null && memory.duration_sec > 0 && (...)} — if duration_sec is 0, renders "0"
+  - {memory.confidence != null && (...)} — same risk
+  - {memory.entities.length > 0 && (...)} — if length is 0, renders "0"
+
+Fix Applied (mobile/app/memory/[id].tsx):
+  Changed all && conditional renders to ternary (? ... : null) pattern:
+
+  BEFORE:
+    {memory.duration_sec != null && memory.duration_sec > 0 && (
+      <Text style={styles.meta}>Duration: {Math.round(memory.duration_sec / 60)} min</Text>
+    )}
+
+  AFTER:
+    {memory.duration_sec != null && memory.duration_sec > 0 ? (
+      <Text style={styles.meta}>Duration: {Math.round(memory.duration_sec / 60)} min</Text>
+    ) : null}
+
+  Same pattern applied to confidence and entities blocks.
+
+
+---
+
+ISSUE 2: Video Processing Pipeline Stuck
+-----------------------------------------
+
+Diagnosis:
+  Docker logs showed frame extraction failed with ffmpeg exit status 234.
+  The WebM file from the browser's MediaRecorder has issues with ffmpeg's fps filter.
+  Short WebM chunks (< 30 seconds) may not have proper container headers.
+
+Root Causes:
+  1. extract_frames uses fps=1/30 (one frame every 30 seconds), but the chunk IS
+     only ~30 seconds, so it extracts 0-1 frames and ffmpeg fails.
+  2. get_video_duration might fail on WebM files, returning 0, which caused
+     frame extraction to be skipped entirely.
+  3. When frame extraction fails with an exception, process_video raises and
+     the session status never transitions from "processing" to "stored".
+  4. Live capture screens (live-audio.tsx, live-camera.tsx) don't pass GPS
+     location to upload calls, so location info is always missing.
+
+Fix 1 — Frame Extractor (app/services/processing/frame_extractor.py):
+  - extract_audio_track: Changed check=True to check=False so ffmpeg errors
+    don't raise exceptions. Added warning log when output is empty.
+  - extract_frames: Rewrote with 3 strategies:
+    a) duration <= 0 (unknown, common with WebM): extract single frame with -frames:v 1
+    b) duration <= 60 (short clip): extract one frame from midpoint with -ss
+    c) duration > 60 (longer video): use original fps interval approach
+  - All ffmpeg calls use check=False to avoid crashing on non-zero exit codes.
+
+Fix 2 — Pipeline Resilience (app/services/processing/pipeline.py):
+  - process_video: Wrapped audio_path and frame_paths extraction in individual
+    try/except blocks so one failure doesn't prevent the other.
+  - frame_job status: Changed from always "done" to conditional — "done" if
+    frames or audio were extracted, "failed" otherwise.
+  - run_pipeline: Wrapped entire media type dispatch in try/except. On failure,
+    marks session status as "failed" instead of leaving it stuck in "processing".
+
+Fix 3 — Location in Live Capture (INCOMPLETE — hit rate limit):
+  Changes started but not completed for:
+  - mobile/app/live-audio.tsx: Added Location import, locationRef, useEffect
+    to fetch GPS on mount, passed location to uploadAudioBlob calls.
+  - mobile/app/live-camera.tsx: Same pattern — added Location import, locationRef,
+    useEffect for GPS, passed location to uploadVideoBlob calls.
+
+  NOTE: These changes were made by Claude Code but it hit its rate limit before
+  it could verify/complete. The api.uploadAudioBlob and api.uploadVideoBlob
+  functions in mobile/lib/api.ts may also need updating to accept and forward
+  the location parameter.
+
+---
+
+STATUS: INCOMPLETE
+  Claude Code hit its rate limit mid-session. The following still needs verification:
+  - Whether all the file edits were actually saved/applied
+  - Whether mobile/lib/api.ts needs location parameter updates
+  - Whether the Docker image needs rebuilding for backend changes
+  - End-to-end testing of the video capture → processing → query flow

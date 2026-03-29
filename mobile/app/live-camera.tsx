@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import * as Location from "expo-location";
 import { useWebCamera } from "../hooks/useWebCamera";
 import { useMediaRecorder } from "../hooks/useMediaRecorder";
 import { WebVideoElement } from "../components/WebVideoElement";
@@ -25,22 +26,33 @@ export default function LiveCameraScreen() {
   const [flashFeedback, setFlashFeedback] = useState(false);
   const [pendingUploads, setPendingUploads] = useState(0);
   const videoElRef = useRef<HTMLVideoElement | null>(null);
+  const locationRef = useRef<{ gps_lat: number; gps_lng: number } | undefined>(undefined);
+
+  // Fetch location once on mount
+  useEffect(() => {
+    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+      .then(({ coords }) => {
+        locationRef.current = { gps_lat: coords.latitude, gps_lng: coords.longitude };
+      })
+      .catch(() => {});
+  }, []);
 
   // Camera stream — include audio so video recording captures sound
   const camera = useWebCamera({ video: true, audio: true });
 
   // Video chunk recorder
   const onVideoChunk = useCallback((blob: Blob, index: number) => {
+    const loc = locationRef.current;
     setPendingUploads((p) => p + 1);
     api
-      .uploadVideoBlob(blob, index)
-      .catch(() => api.uploadVideoBlob(blob, index).catch(() => {}))
+      .uploadVideoBlob(blob, index, loc)
+      .catch(() => api.uploadVideoBlob(blob, index, loc).catch(() => {}))
       .finally(() => setPendingUploads((p) => Math.max(0, p - 1)));
   }, []);
 
   const recorder = useMediaRecorder({
     kind: "video",
-    chunkIntervalMs: 30_000,
+    chunkIntervalMs: 60_000,
     onChunk: onVideoChunk,
   });
 
@@ -91,7 +103,7 @@ export default function LiveCameraScreen() {
         if (blob) {
           setPendingUploads((p) => p + 1);
           api
-            .uploadPhotoBlob(blob)
+            .uploadPhotoBlob(blob, locationRef.current)
             .catch(() => {})
             .finally(() => setPendingUploads((p) => Math.max(0, p - 1)));
         }

@@ -11,7 +11,6 @@ def add_memory_vectors(
     session_id: str,
     timestamp: datetime,
     text_embedding: list[float] | None = None,
-    image_embeddings: list[list[float]] | None = None,
     ocr_embeddings: list[list[float]] | None = None,
 ) -> int:
     """
@@ -34,18 +33,6 @@ def add_memory_vectors(
             "modality": "text",
             "timestamp": ts_str,
         })
-
-    if image_embeddings:
-        for i, emb in enumerate(image_embeddings):
-            if any(v != 0.0 for v in emb):
-                ids.append(f"{memory_id}_img_{i}")
-                embeddings.append(emb)
-                metadatas.append({
-                    "memory_id": memory_id,
-                    "session_id": session_id,
-                    "modality": "image",
-                    "timestamp": ts_str,
-                })
 
     if ocr_embeddings:
         for i, emb in enumerate(ocr_embeddings):

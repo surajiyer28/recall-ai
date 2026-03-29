@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import * as Location from "expo-location";
 import { useMediaRecorder } from "../hooks/useMediaRecorder";
 import * as api from "../lib/api";
 import { Colors, FontSize, Spacing } from "../lib/constants";
@@ -20,6 +21,16 @@ export default function LiveAudioScreen() {
   const [completedUploads, setCompletedUploads] = useState(0);
   const [stopping, setStopping] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
+  const locationRef = useRef<{ gps_lat: number; gps_lng: number } | undefined>(undefined);
+
+  // Fetch location once on mount
+  useEffect(() => {
+    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+      .then(({ coords }) => {
+        locationRef.current = { gps_lat: coords.latitude, gps_lng: coords.longitude };
+      })
+      .catch(() => {});
+  }, []);
 
   // Pulse animation
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -45,23 +56,24 @@ export default function LiveAudioScreen() {
   }, [pulseAnim]);
 
   const onChunk = useCallback((blob: Blob, index: number) => {
+    const loc = locationRef.current;
     setPendingUploads((p) => p + 1);
     api
-      .uploadAudioBlob(blob, index)
+      .uploadAudioBlob(blob, index, loc)
       .then(() => setCompletedUploads((c) => c + 1))
       .catch(() => {
         // Retry once
         api
-          .uploadAudioBlob(blob, index)
+          .uploadAudioBlob(blob, index, loc)
           .then(() => setCompletedUploads((c) => c + 1))
-          .catch(() => setCompletedUploads((c) => c + 1)); // count as done even if failed
+          .catch(() => setCompletedUploads((c) => c + 1));
       })
       .finally(() => setPendingUploads((p) => Math.max(0, p - 1)));
   }, []);
 
   const recorder = useMediaRecorder({
     kind: "audio",
-    chunkIntervalMs: 30_000,
+    chunkIntervalMs: 60_000,
     onChunk,
   });
 

@@ -46,18 +46,18 @@ export default function MemoryDetailScreen() {
         {dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
       </Text>
 
-      {memory.duration_sec != null && memory.duration_sec > 0 && (
+      {memory.duration_sec != null && memory.duration_sec > 0 ? (
         <Text style={styles.meta}>
           Duration: {Math.round(memory.duration_sec / 60)} min
         </Text>
-      )}
+      ) : null}
 
-      {memory.confidence != null && (
+      {memory.confidence != null ? (
         <Text style={styles.meta}>Confidence: {(memory.confidence * 100).toFixed(0)}%</Text>
-      )}
+      ) : null}
 
       {/* Entities */}
-      {memory.entities.length > 0 && (
+      {memory.entities.length > 0 ? (
         <>
           <Text style={styles.sectionTitle}>Key Entities</Text>
           <View style={styles.tags}>
@@ -71,7 +71,7 @@ export default function MemoryDetailScreen() {
             ))}
           </View>
         </>
-      )}
+      ) : null}
 
       {/* Summary */}
       {memory.summary && (
