@@ -17,10 +17,12 @@ db_port = os.getenv("POSTGRES_PORT", "5433")
 db_user = os.getenv("POSTGRES_USER", "recallai")
 db_pass = os.getenv("POSTGRES_PASSWORD", "recallai_dev")
 db_name = os.getenv("POSTGRES_DB", "recallai")
-config.set_main_option(
-    "sqlalchemy.url",
-    f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}",
-)
+# Cloud SQL on Cloud Run uses Unix socket (host starts with /)
+if db_host.startswith("/"):
+    _db_url = f"postgresql+psycopg2://{db_user}:{db_pass}@/{db_name}?host={db_host}"
+else:
+    _db_url = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+config.set_main_option("sqlalchemy.url", _db_url)
 
 target_metadata = Base.metadata
 

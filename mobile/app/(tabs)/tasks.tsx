@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useApi } from "../../hooks/useApi";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -29,7 +29,8 @@ export default function TasksScreen() {
 
   const tasksQuery = useApi<TaskItem[]>(
     () => api.getTasks(filter === "all" ? undefined : filter),
-    [filter]
+    [filter],
+    { pollingIntervalMs: 30_000 }
   );
 
   const toggleDone = useCallback(
@@ -117,6 +118,9 @@ export default function TasksScreen() {
             ) : null}
           </View>
         )}
+        refreshControl={
+          <RefreshControl refreshing={tasksQuery.refreshing} onRefresh={tasksQuery.refetch} />
+        }
         contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: Spacing.xxl, gap: Spacing.sm }}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>

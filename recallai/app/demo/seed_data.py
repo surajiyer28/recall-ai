@@ -13,6 +13,8 @@ from app.models.memory import Memory
 from app.models.entity import Entity
 from app.models.knowledge_graph import EntityRelationship
 from app.models.notification import Notification
+from app.models.person import Person, PersonHighlight
+from app.models.task import Task
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +48,24 @@ DEMO_CAPTURES = [
             {"type": "action_item", "value": "submit project proposal with literature review"},
             {"type": "object", "value": "transformer architectures"},
         ],
+        "seed_people": [
+            {
+                "name": "Professor Chen",
+                "highlights": ["Assigned project proposal due next Friday, requires a literature review section"],
+                "tasks": [{"title": "Submit project proposal with literature review section", "deadline_days": 7}],
+            },
+            {
+                "name": "Sarah",
+                "highlights": ["Will lead the transformer architectures section for NLP"],
+                "tasks": [],
+            },
+            {
+                "name": "Marcus",
+                "highlights": ["Will handle the data pipeline for the group project"],
+                "tasks": [],
+            },
+        ],
+        "seed_orphan_tasks": [],
     },
     {
         "trigger": "manual_upload",
@@ -73,6 +93,8 @@ DEMO_CAPTURES = [
             {"type": "object", "value": "Bluetooth headphones"},
             {"type": "place", "value": "desk upstairs"},
         ],
+        "seed_people": [],
+        "seed_orphan_tasks": [],
     },
     {
         "trigger": "vad",
@@ -100,6 +122,17 @@ DEMO_CAPTURES = [
             {"type": "object", "value": "recurrence relations"},
             {"type": "action_item", "value": "review practice problems for midterm"},
         ],
+        "seed_people": [
+            {
+                "name": "Dr. Ramirez",
+                "highlights": [
+                    "Midterm covers chapters 5-9, focus on recurrence relations and dynamic programming",
+                    "Exam is worth 30% of the grade",
+                ],
+                "tasks": [{"title": "Review practice problems for midterm (chapters 5-9)", "deadline_days": 5}],
+            },
+        ],
+        "seed_orphan_tasks": [],
     },
     {
         "trigger": "manual_upload",
@@ -115,6 +148,10 @@ DEMO_CAPTURES = [
             {"type": "object", "value": "shopping list"},
             {"type": "place", "value": "Target on East 3rd Street"},
             {"type": "action_item", "value": "buy eggs, milk, bread, olive oil, chicken breast, rice, broccoli"},
+        ],
+        "seed_people": [],
+        "seed_orphan_tasks": [
+            {"title": "Buy groceries: eggs, milk, bread, olive oil, chicken breast, rice, broccoli", "deadline_days": 1},
         ],
     },
     {
@@ -144,6 +181,19 @@ DEMO_CAPTURES = [
             {"type": "object", "value": "memory assistant app"},
             {"type": "action_item", "value": "prepare backend architecture diagram before Saturday"},
         ],
+        "seed_people": [
+            {
+                "name": "Alex",
+                "highlights": [
+                    "Co-registrant for Saturday hackathon at Luddy Hall atrium (9 AM)",
+                    "Will bring GPU laptop to the hackathon",
+                ],
+                "tasks": [
+                    {"title": "Prepare backend architecture diagram before Saturday hackathon", "deadline_days": 5},
+                ],
+            },
+        ],
+        "seed_orphan_tasks": [],
     },
     {
         "trigger": "vad",
@@ -173,6 +223,20 @@ DEMO_CAPTURES = [
             {"type": "action_item", "value": "bring poster for research showcase Thursday"},
             {"type": "action_item", "value": "confirm airport ride with Emily"},
         ],
+        "seed_people": [
+            {
+                "name": "Emily",
+                "highlights": [
+                    "ML Club guest speaker from Google Research next Wednesday on multimodal models",
+                    "Offered airport ride for spring break next month",
+                ],
+                "tasks": [
+                    {"title": "Bring poster for Thursday research showcase", "deadline_days": 3},
+                    {"title": "Confirm airport ride with Emily for spring break", "deadline_days": 30},
+                ],
+            },
+        ],
+        "seed_orphan_tasks": [],
     },
 ]
 
@@ -242,6 +306,47 @@ async def load_demo_data():
                         memory_id=memory.id,
                     )
                     db.add(rel)
+            await db.commit()
+
+            # Create Person, PersonHighlight, and Task records (powers People + Tasks tabs)
+            for person_data in capture.get("seed_people", []):
+                person_record = Person(name=person_data["name"])
+                db.add(person_record)
+                await db.flush()
+
+                for hl_text in person_data.get("highlights", []):
+                    db.add(PersonHighlight(
+                        person_id=person_record.id,
+                        memory_id=memory.id,
+                        highlight=hl_text,
+                    ))
+
+                for task_data in person_data.get("tasks", []):
+                    deadline = None
+                    if task_data.get("deadline_days") is not None:
+                        deadline = now + timedelta(days=task_data["deadline_days"])
+                    db.add(Task(
+                        memory_id=memory.id,
+                        person_id=person_record.id,
+                        title=task_data["title"],
+                        description=task_data.get("description"),
+                        deadline=deadline,
+                        status="pending",
+                    ))
+
+            for task_data in capture.get("seed_orphan_tasks", []):
+                deadline = None
+                if task_data.get("deadline_days") is not None:
+                    deadline = now + timedelta(days=task_data["deadline_days"])
+                db.add(Task(
+                    memory_id=memory.id,
+                    person_id=None,
+                    title=task_data["title"],
+                    description=task_data.get("description"),
+                    deadline=deadline,
+                    status="pending",
+                ))
+
             await db.commit()
 
             logger.info(

@@ -1,8 +1,4 @@
-import { Platform } from "react-native";
-
-// Android emulator uses 10.0.2.2 to reach host localhost
-const LOCAL_HOST = Platform.OS === "android" ? "10.0.2.2" : "localhost";
-export const API_BASE_URL = `http://${LOCAL_HOST}:8080/api/v1`;
+export const API_BASE_URL = "https://recallai-api-225823353007.us-central1.run.app/api/v1";
 
 export const DarkColors = {
   primary: "#3b82f6", // blue-500

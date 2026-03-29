@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useApi } from "../../hooks/useApi";
@@ -30,9 +30,10 @@ export default function TimelineScreen() {
 
   const timeline = useApi<TimelineResponse>(
     () => api.getTimeline(toDateStr(date)),
-    [date]
+    [date],
+    { pollingIntervalMs: 30_000 }
   );
-  const stats = useApi<MemoryStats>(() => api.getTimelineStats(), []);
+  const stats = useApi<MemoryStats>(() => api.getTimelineStats(), [], { pollingIntervalMs: 30_000 });
 
   const shiftDate = useCallback(
     (days: number) => {
@@ -82,6 +83,9 @@ export default function TimelineScreen() {
             onPress={() => router.push(`/memory/${item.id}`)}
           />
         )}
+        refreshControl={
+          <RefreshControl refreshing={timeline.refreshing} onRefresh={timeline.refetch} />
+        }
         contentContainerStyle={{ paddingBottom: Spacing.xxl }}
         ListEmptyComponent={
           <Text style={[styles.empty, { color: colors.textMuted }]}>

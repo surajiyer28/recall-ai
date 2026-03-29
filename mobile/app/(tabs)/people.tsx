@@ -1,4 +1,4 @@
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useApi } from "../../hooks/useApi";
@@ -10,7 +10,7 @@ import type { PersonSummary } from "../../lib/types";
 export default function PeopleScreen() {
   const router = useRouter();
   const { colors } = useTheme();
-  const peopleQuery = useApi<PersonSummary[]>(() => api.getPeople(), []);
+  const peopleQuery = useApi<PersonSummary[]>(() => api.getPeople(), [], { pollingIntervalMs: 30_000 });
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -34,6 +34,9 @@ export default function PeopleScreen() {
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </Pressable>
         )}
+        refreshControl={
+          <RefreshControl refreshing={peopleQuery.refreshing} onRefresh={peopleQuery.refetch} />
+        }
         contentContainerStyle={{
           paddingHorizontal: Spacing.lg,
           paddingTop: Spacing.md,

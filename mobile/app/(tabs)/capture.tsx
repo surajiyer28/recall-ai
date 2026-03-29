@@ -4,6 +4,7 @@ import {
   Alert,
   FlatList,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   View,
@@ -27,7 +28,8 @@ export default function CaptureScreen() {
   const capture = useCapture();
   const sessions = useApi<{ sessions: CaptureSession[]; total: number }>(
     () => api.getSessions(10),
-    []
+    [],
+    { pollingIntervalMs: 15_000 }
   );
   const [busy, setBusy] = useState(false);
 
@@ -141,6 +143,9 @@ export default function CaptureScreen() {
         data={sessions.data?.sessions ?? []}
         keyExtractor={(s) => s.id}
         renderItem={({ item }) => <CaptureSessionCard session={item} />}
+        refreshControl={
+          <RefreshControl refreshing={sessions.refreshing} onRefresh={sessions.refetch} />
+        }
         contentContainerStyle={{ gap: Spacing.sm, paddingBottom: Spacing.xxl }}
         ListEmptyComponent={
           <Text style={[styles.empty, { color: colors.textMuted }]}>

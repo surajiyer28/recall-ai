@@ -1,4 +1,4 @@
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useApi } from "../../hooks/useApi";
@@ -20,10 +20,11 @@ export default function PersonDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colors } = useTheme();
 
-  const peopleQuery = useApi<PersonSummary[]>(() => api.getPeople(), []);
+  const peopleQuery = useApi<PersonSummary[]>(() => api.getPeople(), [], { pollingIntervalMs: 30_000 });
   const highlightsQuery = useApi<PersonHighlight[]>(
     () => api.getPersonHighlights(id),
-    [id]
+    [id],
+    { pollingIntervalMs: 30_000 }
   );
 
   const person = (peopleQuery.data ?? []).find((p) => p.id === id);
@@ -59,6 +60,9 @@ export default function PersonDetailScreen() {
             <Text style={[styles.date, { color: colors.textMuted }]}>{formatDate(item.created_at)}</Text>
           </View>
         )}
+        refreshControl={
+          <RefreshControl refreshing={highlightsQuery.refreshing} onRefresh={highlightsQuery.refetch} />
+        }
         contentContainerStyle={{
           paddingHorizontal: Spacing.lg,
           paddingBottom: Spacing.xxl,

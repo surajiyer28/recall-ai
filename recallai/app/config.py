@@ -32,6 +32,12 @@ class Settings(BaseSettings):
 
     @property
     def postgres_url(self) -> str:
+        # Cloud SQL on Cloud Run uses Unix socket (host starts with /)
+        if self.postgres_host.startswith("/"):
+            return (
+                f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
+                f"@/{self.postgres_db}?host={self.postgres_host}"
+            )
         return (
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
@@ -39,6 +45,12 @@ class Settings(BaseSettings):
 
     @property
     def postgres_url_sync(self) -> str:
+        # Cloud SQL on Cloud Run uses Unix socket (host starts with /)
+        if self.postgres_host.startswith("/"):
+            return (
+                f"postgresql+psycopg2://{self.postgres_user}:{self.postgres_password}"
+                f"@/{self.postgres_db}?host={self.postgres_host}"
+            )
         return (
             f"postgresql+psycopg2://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
