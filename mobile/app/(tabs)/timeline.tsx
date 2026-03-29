@@ -3,9 +3,10 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useApi } from "../../hooks/useApi";
+import { useTheme } from "../../contexts/ThemeContext";
 import { TimelineEntryCard } from "../../components/TimelineEntryCard";
 import * as api from "../../lib/api";
-import { Colors, FontSize, Spacing } from "../../lib/constants";
+import { FontSize, Spacing } from "../../lib/constants";
 import type { MemoryStats, TimelineResponse } from "../../lib/types";
 
 function toDateStr(d: Date) {
@@ -24,6 +25,7 @@ function formatDateLabel(d: Date) {
 
 export default function TimelineScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
   const [date, setDate] = useState(new Date());
 
   const timeline = useApi<TimelineResponse>(
@@ -37,7 +39,7 @@ export default function TimelineScreen() {
       setDate((prev) => {
         const d = new Date(prev);
         d.setDate(d.getDate() + days);
-        if (d > new Date()) return prev; // don't go into future
+        if (d > new Date()) return prev;
         return d;
       });
     },
@@ -45,15 +47,15 @@ export default function TimelineScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Date nav */}
       <View style={styles.dateRow}>
         <Pressable onPress={() => shiftDate(-1)} hitSlop={12}>
-          <Ionicons name="chevron-back" size={22} color={Colors.textSecondary} />
+          <Ionicons name="chevron-back" size={22} color={colors.textSecondary} />
         </Pressable>
-        <Text style={styles.dateLabel}>{formatDateLabel(date)}</Text>
+        <Text style={[styles.dateLabel, { color: colors.text }]}>{formatDateLabel(date)}</Text>
         <Pressable onPress={() => shiftDate(1)} hitSlop={12}>
-          <Ionicons name="chevron-forward" size={22} color={Colors.textSecondary} />
+          <Ionicons name="chevron-forward" size={22} color={colors.textSecondary} />
         </Pressable>
       </View>
 
@@ -82,12 +84,12 @@ export default function TimelineScreen() {
         )}
         contentContainerStyle={{ paddingBottom: Spacing.xxl }}
         ListEmptyComponent={
-          <Text style={styles.empty}>
+          <Text style={[styles.empty, { color: colors.textMuted }]}>
             {timeline.loading ? "Loading..." : "No memories for this day"}
           </Text>
         }
         ListHeaderComponent={
-          <Text style={styles.entryCount}>
+          <Text style={[styles.entryCount, { color: colors.textSecondary }]}>
             {timeline.data ? `${timeline.data.total} memories` : ""}
           </Text>
         }
@@ -97,16 +99,17 @@ export default function TimelineScreen() {
 }
 
 function StatBox({ label, value }: { label: string; value: number }) {
+  const { colors } = useTheme();
   return (
     <View style={styles.statBox}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
+      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1 },
   dateRow: {
     flexDirection: "row",
     justifyContent: "center",
@@ -114,7 +117,7 @@ const styles = StyleSheet.create({
     gap: Spacing.xl,
     paddingVertical: Spacing.md,
   },
-  dateLabel: { color: Colors.text, fontSize: FontSize.lg, fontWeight: "700", minWidth: 120, textAlign: "center" },
+  dateLabel: { fontSize: FontSize.lg, fontWeight: "700", minWidth: 120, textAlign: "center" },
   statsRow: {
     flexDirection: "row",
     justifyContent: "space-around",
@@ -122,16 +125,14 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.lg,
   },
   statBox: { alignItems: "center" },
-  statValue: { color: Colors.text, fontSize: FontSize.xl, fontWeight: "700" },
-  statLabel: { color: Colors.textSecondary, fontSize: FontSize.xs, marginTop: 2 },
+  statValue: { fontSize: FontSize.xl, fontWeight: "700" },
+  statLabel: { fontSize: FontSize.xs, marginTop: 2 },
   entryCount: {
-    color: Colors.textSecondary,
     fontSize: FontSize.sm,
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.sm,
   },
   empty: {
-    color: Colors.textMuted,
     fontSize: FontSize.md,
     textAlign: "center",
     marginTop: Spacing.xxl,

@@ -1,25 +1,26 @@
 import { Tabs, useRouter } from "expo-router";
 import { Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../../lib/constants";
+import { useTheme } from "../../contexts/ThemeContext";
 import { useCapture } from "../../contexts/CaptureContext";
 
 export default function TabLayout() {
   const router = useRouter();
+  const { colors } = useTheme();
   const { capture_status } = useCapture();
   const isActive = capture_status === "active";
 
   return (
     <Tabs
       screenOptions={{
-        tabBarStyle: { backgroundColor: Colors.background, borderTopColor: Colors.border },
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textMuted,
-        headerStyle: { backgroundColor: Colors.background },
-        headerTintColor: Colors.text,
+        tabBarStyle: { backgroundColor: colors.background, borderTopColor: colors.border },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+        headerStyle: { backgroundColor: colors.background },
+        headerTintColor: colors.text,
         headerRight: () => (
           <Pressable onPress={() => router.push("/settings")} style={{ marginRight: 16 }}>
-            <Ionicons name="settings-outline" size={22} color={Colors.textSecondary} />
+            <Ionicons name="settings-outline" size={22} color={colors.textSecondary} />
           </Pressable>
         ),
       }}
@@ -50,7 +51,7 @@ export default function TabLayout() {
             <Ionicons
               name={isActive ? "radio-button-on" : "radio-button-off"}
               size={size}
-              color={isActive ? Colors.success : color}
+              color={isActive ? colors.success : color}
             />
           ),
         }}

@@ -1,17 +1,19 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { CaptureProvider } from "../contexts/CaptureContext";
-import { Colors } from "../lib/constants";
+import { ThemeProvider, useTheme } from "../contexts/ThemeContext";
 
-export default function RootLayout() {
+function InnerLayout() {
+  const { colors, isDark } = useTheme();
+
   return (
-    <CaptureProvider>
-      <StatusBar style="light" />
+    <>
+      <StatusBar style={isDark ? "light" : "dark"} />
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: Colors.background },
-          headerTintColor: Colors.text,
-          contentStyle: { backgroundColor: Colors.background },
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          contentStyle: { backgroundColor: colors.background },
         }}
       >
         <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
@@ -33,6 +35,16 @@ export default function RootLayout() {
           options={{ headerShown: false, presentation: "fullScreenModal" }}
         />
       </Stack>
-    </CaptureProvider>
+    </>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <CaptureProvider>
+        <InnerLayout />
+      </CaptureProvider>
+    </ThemeProvider>
   );
 }

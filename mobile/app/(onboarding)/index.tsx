@@ -1,28 +1,30 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors, FontSize, Spacing } from "../../lib/constants";
+import { useTheme } from "../../contexts/ThemeContext";
+import { FontSize, Spacing } from "../../lib/constants";
 
 export default function Welcome() {
   const router = useRouter();
+  const { colors } = useTheme();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.hero}>
-        <Ionicons name="bulb" size={64} color={Colors.primary} />
-        <Text style={styles.title}>RecallAI</Text>
-        <Text style={styles.subtitle}>Your memory, always on</Text>
+        <Ionicons name="bulb" size={64} color={colors.primary} />
+        <Text style={[styles.title, { color: colors.text }]}>RecallAI</Text>
+        <Text style={[styles.subtitle, { color: colors.primary }]}>Your memory, always on</Text>
       </View>
 
       <View style={styles.body}>
-        <Text style={styles.description}>
+        <Text style={[styles.description, { color: colors.textSecondary }]}>
           We capture what you hear and see — so you can ask about it later.
         </Text>
-        <Text style={styles.tagline}>Zero effort. Total privacy.</Text>
+        <Text style={[styles.tagline, { color: colors.textMuted }]}>Zero effort. Total privacy.</Text>
       </View>
 
       <Pressable
-        style={styles.button}
+        style={[styles.button, { backgroundColor: colors.primary }]}
         onPress={() => router.push("/(onboarding)/permissions")}
       >
         <Text style={styles.buttonText}>Get started</Text>
@@ -40,29 +42,24 @@ const styles = StyleSheet.create({
   },
   hero: { alignItems: "center", gap: Spacing.md },
   title: {
-    color: Colors.text,
     fontSize: FontSize.title,
     fontWeight: "800",
     marginTop: Spacing.lg,
   },
   subtitle: {
-    color: Colors.primary,
     fontSize: FontSize.lg,
     fontWeight: "500",
   },
   body: { alignItems: "center", marginTop: Spacing.xxl * 2, gap: Spacing.lg },
   description: {
-    color: Colors.textSecondary,
     fontSize: FontSize.lg,
     textAlign: "center",
     lineHeight: 26,
   },
   tagline: {
-    color: Colors.textMuted,
     fontSize: FontSize.md,
   },
   button: {
-    backgroundColor: Colors.primary,
     borderRadius: 14,
     paddingVertical: Spacing.lg,
     paddingHorizontal: Spacing.xxl * 2,

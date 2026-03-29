@@ -14,14 +14,16 @@ import * as DocumentPicker from "expo-document-picker";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import { useCapture } from "../../contexts/CaptureContext";
+import { useTheme } from "../../contexts/ThemeContext";
 import { useApi } from "../../hooks/useApi";
 import { CaptureSessionCard } from "../../components/CaptureSessionCard";
 import * as api from "../../lib/api";
-import { Colors, FontSize, Spacing } from "../../lib/constants";
+import { FontSize, Spacing } from "../../lib/constants";
 import type { CaptureSession } from "../../lib/types";
 
 export default function CaptureScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
   const capture = useCapture();
   const sessions = useApi<{ sessions: CaptureSession[]; total: number }>(
     () => api.getSessions(10),
@@ -94,32 +96,32 @@ export default function CaptureScreen() {
   }, [getLocation, sessions]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Live capture buttons */}
       <View style={styles.liveRow}>
         <Pressable
           style={styles.liveBtn}
           onPress={() => router.push("/live-audio")}
         >
-          <View style={[styles.liveBtnIcon, { backgroundColor: Colors.primary }]}>
+          <View style={[styles.liveBtnIcon, { backgroundColor: colors.primary }]}>
             <Ionicons name="mic" size={28} color="#fff" />
           </View>
-          <Text style={styles.liveBtnLabel}>Live Audio</Text>
+          <Text style={[styles.liveBtnLabel, { color: colors.text }]}>Live Audio</Text>
         </Pressable>
 
         <Pressable
           style={styles.liveBtn}
           onPress={() => router.push("/live-camera")}
         >
-          <View style={[styles.liveBtnIcon, { backgroundColor: Colors.success }]}>
+          <View style={[styles.liveBtnIcon, { backgroundColor: colors.success }]}>
             <Ionicons name="camera" size={28} color="#fff" />
           </View>
-          <Text style={styles.liveBtnLabel}>Camera</Text>
+          <Text style={[styles.liveBtnLabel, { color: colors.text }]}>Camera</Text>
         </Pressable>
       </View>
 
       {/* Upload actions */}
-      <Text style={styles.uploadTitle}>Upload from device</Text>
+      <Text style={[styles.uploadTitle, { color: colors.textMuted }]}>Upload from device</Text>
       <View style={styles.uploadRow}>
         <UploadBtn icon="image" label="Image" onPress={pickImage} disabled={busy} />
         <UploadBtn icon="musical-notes" label="Audio" onPress={pickAudioFile} disabled={busy} />
@@ -128,20 +130,20 @@ export default function CaptureScreen() {
 
       {busy && (
         <View style={styles.busyRow}>
-          <ActivityIndicator size="small" color={Colors.primary} />
-          <Text style={styles.busyText}>Uploading...</Text>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={[styles.busyText, { color: colors.textSecondary }]}>Uploading...</Text>
         </View>
       )}
 
       {/* Recent sessions */}
-      <Text style={styles.sectionTitle}>Recent Captures</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Captures</Text>
       <FlatList
         data={sessions.data?.sessions ?? []}
         keyExtractor={(s) => s.id}
         renderItem={({ item }) => <CaptureSessionCard session={item} />}
         contentContainerStyle={{ gap: Spacing.sm, paddingBottom: Spacing.xxl }}
         ListEmptyComponent={
-          <Text style={styles.empty}>
+          <Text style={[styles.empty, { color: colors.textMuted }]}>
             {sessions.loading ? "Loading..." : "No captures yet"}
           </Text>
         }
@@ -161,17 +163,17 @@ function UploadBtn({
   onPress: () => void;
   disabled: boolean;
 }) {
+  const { colors } = useTheme();
   return (
     <Pressable style={[styles.uploadBtn, disabled && { opacity: 0.4 }]} onPress={onPress} disabled={disabled}>
-      <Ionicons name={icon} size={20} color={Colors.primary} />
-      <Text style={styles.uploadLabel}>{label}</Text>
+      <Ionicons name={icon} size={20} color={colors.primary} />
+      <Text style={[styles.uploadLabel, { color: colors.textSecondary }]}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background, paddingTop: Spacing.lg },
-  // Live capture
+  container: { flex: 1, paddingTop: Spacing.lg },
   liveRow: {
     flexDirection: "row",
     justifyContent: "center",
@@ -191,13 +193,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   liveBtnLabel: {
-    color: Colors.text,
     fontSize: FontSize.sm,
     fontWeight: "600",
   },
-  // Uploads
   uploadTitle: {
-    color: Colors.textMuted,
     fontSize: FontSize.xs,
     textTransform: "uppercase",
     letterSpacing: 1,
@@ -211,7 +210,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   uploadBtn: { alignItems: "center", gap: Spacing.xs },
-  uploadLabel: { color: Colors.textSecondary, fontSize: FontSize.xs },
+  uploadLabel: { fontSize: FontSize.xs },
   busyRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -219,16 +218,14 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     marginBottom: Spacing.md,
   },
-  busyText: { color: Colors.textSecondary, fontSize: FontSize.sm },
+  busyText: { fontSize: FontSize.sm },
   sectionTitle: {
-    color: Colors.text,
     fontSize: FontSize.lg,
     fontWeight: "700",
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.sm,
   },
   empty: {
-    color: Colors.textMuted,
     fontSize: FontSize.md,
     textAlign: "center",
     marginTop: Spacing.xl,

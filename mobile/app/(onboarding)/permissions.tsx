@@ -5,7 +5,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 import * as Location from "expo-location";
 import AsyncStorage from "@react-native-async-storage/async-storage" ;
-import { Colors, FontSize, Spacing } from "../../lib/constants";
+import { useTheme } from "../../contexts/ThemeContext";
+import { FontSize, Spacing } from "../../lib/constants";
 
 type Status = "pending" | "granted" | "denied";
 
@@ -23,6 +24,7 @@ const storage = {
 
 export default function Permissions() {
   const router = useRouter();
+  const { colors } = useTheme();
   const [mic, setMic] = useState<Status>("pending");
   const [cam, setCam] = useState<Status>("pending");
   const [loc, setLoc] = useState<Status>("pending");
@@ -72,79 +74,50 @@ export default function Permissions() {
     router.replace("/(tabs)/capture");
   }, [router]);
 
+  const statusColor = (status: Status) =>
+    status === "granted" ? colors.success : status === "denied" ? colors.error : colors.textMuted;
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Permissions</Text>
-      <Text style={styles.sub}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.heading, { color: colors.text }]}>Permissions</Text>
+      <Text style={[styles.sub, { color: colors.textSecondary }]}>
         RecallAI needs access to capture your day. You control everything.
       </Text>
 
       <View style={styles.list}>
-        <PermRow
-          icon="mic"
-          label="Microphone"
-          status={mic}
-          onRequest={requestMic}
-        />
-        <PermRow
-          icon="camera"
-          label="Camera"
-          status={cam}
-          onRequest={requestCam}
-        />
-        <PermRow
-          icon="location"
-          label="Location"
-          status={loc}
-          onRequest={requestLoc}
-        />
+        {([
+          { icon: "mic" as const, label: "Microphone", status: mic, onRequest: requestMic },
+          { icon: "camera" as const, label: "Camera", status: cam, onRequest: requestCam },
+          { icon: "location" as const, label: "Location", status: loc, onRequest: requestLoc },
+        ]).map((perm) => (
+          <Pressable
+            key={perm.label}
+            style={[styles.row, { backgroundColor: colors.surface }]}
+            onPress={perm.status !== "granted" ? perm.onRequest : undefined}
+          >
+            <Ionicons name={perm.icon} size={22} color={colors.primary} />
+            <Text style={[styles.rowLabel, { color: colors.text }]}>{perm.label}</Text>
+            <Text style={[styles.rowStatus, { color: statusColor(perm.status) }]}>
+              {perm.status === "granted" ? "Granted" : perm.status === "denied" ? "Denied" : "Tap to grant"}
+            </Text>
+          </Pressable>
+        ))}
       </View>
 
-      <Pressable style={styles.button} onPress={proceed}>
+      <Pressable style={[styles.button, { backgroundColor: colors.primary }]} onPress={proceed}>
         <Text style={styles.buttonText}>Continue</Text>
       </Pressable>
     </View>
   );
 }
 
-function PermRow({
-  icon,
-  label,
-  status,
-  onRequest,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  status: Status;
-  onRequest: () => void;
-}) {
-  const color =
-    status === "granted"
-      ? Colors.success
-      : status === "denied"
-        ? Colors.error
-        : Colors.textMuted;
-
-  return (
-    <Pressable style={styles.row} onPress={status !== "granted" ? onRequest : undefined}>
-      <Ionicons name={icon} size={22} color={Colors.primary} />
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={[styles.rowStatus, { color }]}>
-        {status === "granted" ? "Granted" : status === "denied" ? "Denied" : "Tap to grant"}
-      </Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1, padding: Spacing.xxl, justifyContent: "center" },
   heading: {
-    color: Colors.text,
     fontSize: FontSize.xxl,
     fontWeight: "700",
   },
   sub: {
-    color: Colors.textSecondary,
     fontSize: FontSize.md,
     marginTop: Spacing.md,
     lineHeight: 22,
@@ -153,15 +126,13 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.surface,
     borderRadius: 12,
     padding: Spacing.lg,
     gap: Spacing.md,
   },
-  rowLabel: { flex: 1, color: Colors.text, fontSize: FontSize.md, fontWeight: "600" },
+  rowLabel: { flex: 1, fontSize: FontSize.md, fontWeight: "600" },
   rowStatus: { fontSize: FontSize.sm },
   button: {
-    backgroundColor: Colors.primary,
     borderRadius: 14,
     paddingVertical: Spacing.lg,
     alignItems: "center",

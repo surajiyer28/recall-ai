@@ -4,20 +4,38 @@ import { Platform } from "react-native";
 const LOCAL_HOST = Platform.OS === "android" ? "10.0.2.2" : "localhost";
 export const API_BASE_URL = `http://${LOCAL_HOST}:8080/api/v1`;
 
-export const Colors = {
-  primary: "#0EA5E9", // sky-500
-  primaryDark: "#0284C7",
-  background: "#0F172A", // slate-900
-  surface: "#1E293B", // slate-800
-  surfaceLight: "#334155", // slate-700
-  text: "#F8FAFC", // slate-50
-  textSecondary: "#94A3B8", // slate-400
-  textMuted: "#64748B", // slate-500
-  success: "#22C55E",
-  warning: "#F59E0B",
-  error: "#EF4444",
-  border: "#334155",
+export const DarkColors = {
+  primary: "#3b82f6", // blue-500
+  primaryDark: "#1d4ed8", // blue-700
+  background: "#111827", // gray-900
+  surface: "#1f2937", // gray-800
+  surfaceLight: "#374151", // gray-700
+  text: "#F8FAFC", // gray-50
+  textSecondary: "#9ca3af", // gray-400
+  textMuted: "#6b7280", // gray-500
+  success: "#10b981", // emerald-500
+  warning: "#f97316", // orange-500
+  error: "#dc2626", // red-600
+  border: "#374151", // gray-700
 } as const;
+
+export const LightColors = {
+  primary: "#3b82f6", // blue-500
+  primaryDark: "#1d4ed8", // blue-700
+  background: "#f9fafb", // gray-50
+  surface: "#ffffff", // white
+  surfaceLight: "#e5e7eb", // gray-200
+  text: "#111827", // gray-900
+  textSecondary: "#4b5563", // gray-600
+  textMuted: "#9ca3af", // gray-400
+  success: "#10b981", // emerald-500
+  warning: "#f97316", // orange-500
+  error: "#dc2626", // red-600
+  border: "#d1d5db", // gray-300
+} as const;
+
+/** @deprecated Use useTheme().colors instead */
+export const Colors = DarkColors;
 
 export const Spacing = {
   xs: 4,

@@ -4,8 +4,9 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
+import { useTheme } from "../contexts/ThemeContext";
 import * as api from "../lib/api";
-import { Colors, FontSize, Spacing } from "../lib/constants";
+import { FontSize, Spacing } from "../lib/constants";
 
 // Conditional imports — web-only hooks/components
 import { useWebCamera } from "../hooks/useWebCamera";
@@ -31,6 +32,7 @@ function formatTime(sec: number) {
 
 function NativeCameraScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<Mode>("photo");
   const [isVideoRecording, setIsVideoRecording] = useState(false);
@@ -142,14 +144,14 @@ function NativeCameraScreen() {
 
   if (!permission?.granted) {
     return (
-      <View style={styles.errorContainer}>
-        <Ionicons name="camera-outline" size={48} color={Colors.textMuted} />
-        <Text style={styles.errorText}>Camera permission required</Text>
-        <Pressable style={styles.backBtn} onPress={requestPermission}>
+      <View style={[styles.errorContainer, { backgroundColor: colors.background }]}>
+        <Ionicons name="camera-outline" size={48} color={colors.textMuted} />
+        <Text style={[styles.errorText, { color: colors.text }]}>Camera permission required</Text>
+        <Pressable style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={requestPermission}>
           <Text style={styles.backBtnText}>Grant Permission</Text>
         </Pressable>
-        <Pressable style={[styles.backBtn, { backgroundColor: Colors.surface }]} onPress={() => router.back()}>
-          <Text style={[styles.backBtnText, { color: Colors.text }]}>Go Back</Text>
+        <Pressable style={[styles.backBtn, { backgroundColor: colors.surface }]} onPress={() => router.back()}>
+          <Text style={[styles.backBtnText, { color: colors.text }]}>Go Back</Text>
         </Pressable>
       </View>
     );
@@ -170,7 +172,7 @@ function NativeCameraScreen() {
       {/* Recording indicator */}
       {isVideoRecording && (
         <View style={styles.recordingBadge}>
-          <View style={styles.redDot} />
+          <View style={[styles.redDot, { backgroundColor: colors.error }]} />
           <Text style={styles.recordingTime}>{formatTime(elapsed)}</Text>
         </View>
       )}
@@ -178,7 +180,7 @@ function NativeCameraScreen() {
       {/* Upload indicator */}
       {pendingUploads > 0 && (
         <View style={styles.uploadBadge}>
-          <Text style={styles.uploadText}>Uploading...</Text>
+          <Text style={[styles.uploadText, { color: colors.textSecondary }]}>Uploading...</Text>
         </View>
       )}
 
@@ -190,7 +192,7 @@ function NativeCameraScreen() {
 
         <View style={styles.modeToggle}>
           <Pressable
-            style={[styles.modeBtn, mode === "photo" && styles.modeBtnActive]}
+            style={[styles.modeBtn, mode === "photo" && { backgroundColor: colors.primary }]}
             onPress={() => !isVideoRecording && setMode("photo")}
           >
             <Text style={[styles.modeText, mode === "photo" && styles.modeTextActive]}>
@@ -198,7 +200,7 @@ function NativeCameraScreen() {
             </Text>
           </Pressable>
           <Pressable
-            style={[styles.modeBtn, mode === "video" && styles.modeBtnActive]}
+            style={[styles.modeBtn, mode === "video" && { backgroundColor: colors.primary }]}
             onPress={() => !isVideoRecording && setMode("video")}
           >
             <Text style={[styles.modeText, mode === "video" && styles.modeTextActive]}>
@@ -220,13 +222,13 @@ function NativeCameraScreen() {
           </Pressable>
         ) : (
           <Pressable
-            style={[styles.shutterBtn, isVideoRecording && styles.shutterRecording]}
+            style={[styles.shutterBtn, isVideoRecording && { borderColor: colors.error }]}
             onPress={toggleVideoRecording}
           >
             {isVideoRecording ? (
-              <View style={styles.stopSquare} />
+              <View style={[styles.stopSquare, { backgroundColor: colors.error }]} />
             ) : (
-              <View style={styles.recordDot} />
+              <View style={[styles.recordDot, { backgroundColor: colors.error }]} />
             )}
           </Pressable>
         )}
@@ -241,6 +243,7 @@ function NativeCameraScreen() {
 
 function WebCameraScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
   const [mode, setMode] = useState<Mode>("photo");
   const [isVideoRecording, setIsVideoRecording] = useState(false);
   const [flashFeedback, setFlashFeedback] = useState(false);
@@ -347,11 +350,11 @@ function WebCameraScreen() {
 
   if (camera.error) {
     return (
-      <View style={styles.errorContainer}>
-        <Ionicons name="camera-outline" size={48} color={Colors.textMuted} />
-        <Text style={styles.errorText}>Camera access denied</Text>
-        <Text style={styles.errorSub}>{camera.error}</Text>
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+      <View style={[styles.errorContainer, { backgroundColor: colors.background }]}>
+        <Ionicons name="camera-outline" size={48} color={colors.textMuted} />
+        <Text style={[styles.errorText, { color: colors.text }]}>Camera access denied</Text>
+        <Text style={[styles.errorSub, { color: colors.textMuted }]}>{camera.error}</Text>
+        <Pressable style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => router.back()}>
           <Text style={styles.backBtnText}>Go Back</Text>
         </Pressable>
       </View>
@@ -366,14 +369,14 @@ function WebCameraScreen() {
 
       {isVideoRecording && (
         <View style={styles.recordingBadge}>
-          <View style={styles.redDot} />
+          <View style={[styles.redDot, { backgroundColor: colors.error }]} />
           <Text style={styles.recordingTime}>{formatTime(recorder.elapsed)}</Text>
         </View>
       )}
 
       {pendingUploads > 0 && (
         <View style={styles.uploadBadge}>
-          <Text style={styles.uploadText}>Uploading...</Text>
+          <Text style={[styles.uploadText, { color: colors.textSecondary }]}>Uploading...</Text>
         </View>
       )}
 
@@ -384,7 +387,7 @@ function WebCameraScreen() {
 
         <View style={styles.modeToggle}>
           <Pressable
-            style={[styles.modeBtn, mode === "photo" && styles.modeBtnActive]}
+            style={[styles.modeBtn, mode === "photo" && { backgroundColor: colors.primary }]}
             onPress={() => !isVideoRecording && setMode("photo")}
           >
             <Text style={[styles.modeText, mode === "photo" && styles.modeTextActive]}>
@@ -392,7 +395,7 @@ function WebCameraScreen() {
             </Text>
           </Pressable>
           <Pressable
-            style={[styles.modeBtn, mode === "video" && styles.modeBtnActive]}
+            style={[styles.modeBtn, mode === "video" && { backgroundColor: colors.primary }]}
             onPress={() => !isVideoRecording && setMode("video")}
           >
             <Text style={[styles.modeText, mode === "video" && styles.modeTextActive]}>
@@ -413,13 +416,13 @@ function WebCameraScreen() {
           </Pressable>
         ) : (
           <Pressable
-            style={[styles.shutterBtn, isVideoRecording && styles.shutterRecording]}
+            style={[styles.shutterBtn, isVideoRecording && { borderColor: colors.error }]}
             onPress={toggleVideoRecording}
           >
             {isVideoRecording ? (
-              <View style={styles.stopSquare} />
+              <View style={[styles.stopSquare, { backgroundColor: colors.error }]} />
             ) : (
-              <View style={styles.recordDot} />
+              <View style={[styles.recordDot, { backgroundColor: colors.error }]} />
             )}
           </Pressable>
         )}
@@ -484,9 +487,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     borderRadius: 17,
   },
-  modeBtnActive: {
-    backgroundColor: Colors.primary,
-  },
   modeText: {
     color: "rgba(255,255,255,0.7)",
     fontSize: FontSize.sm,
@@ -512,7 +512,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.error,
   },
   recordingTime: {
     color: "#fff",
@@ -530,7 +529,6 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   uploadText: {
-    color: Colors.textSecondary,
     fontSize: FontSize.xs,
   },
   bottomBar: {
@@ -551,9 +549,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  shutterRecording: {
-    borderColor: Colors.error,
-  },
   shutterInner: {
     width: 58,
     height: 58,
@@ -564,35 +559,29 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: Colors.error,
   },
   stopSquare: {
     width: 28,
     height: 28,
     borderRadius: 4,
-    backgroundColor: Colors.error,
   },
   errorContainer: {
     flex: 1,
-    backgroundColor: Colors.background,
     justifyContent: "center",
     alignItems: "center",
     gap: Spacing.md,
     padding: Spacing.xxl,
   },
   errorText: {
-    color: Colors.text,
     fontSize: FontSize.lg,
     fontWeight: "700",
   },
   errorSub: {
-    color: Colors.textMuted,
     fontSize: FontSize.sm,
     textAlign: "center",
   },
   backBtn: {
     marginTop: Spacing.xl,
-    backgroundColor: Colors.primary,
     borderRadius: 12,
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,

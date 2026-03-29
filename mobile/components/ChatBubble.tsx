@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Colors, FontSize, Spacing } from "../lib/constants";
+import { useTheme } from "../contexts/ThemeContext";
+import { FontSize, Spacing } from "../lib/constants";
 import type { ChatMessage } from "../lib/types";
 
 interface Props {
@@ -9,29 +10,30 @@ interface Props {
   onFollowUp?: (text: string) => void;
 }
 
-const CONFIDENCE_COLOR: Record<string, string> = {
-  high: Colors.success,
-  medium: Colors.warning,
-  low: Colors.error,
-};
-
 export function ChatBubble({ message, onSourcePress, onFollowUp }: Props) {
+  const { colors } = useTheme();
   const isUser = message.role === "user";
+
+  const CONFIDENCE_COLOR: Record<string, string> = {
+    high: colors.success,
+    medium: colors.warning,
+    low: colors.error,
+  };
 
   return (
     <View style={[styles.wrapper, isUser ? styles.userWrapper : styles.aiWrapper]}>
-      <View style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}>
-        <Text style={[styles.text, isUser && styles.userText]}>{message.content}</Text>
+      <View style={[styles.bubble, isUser ? { backgroundColor: colors.primary, borderBottomRightRadius: 4 } : { backgroundColor: colors.surface, borderBottomLeftRadius: 4 }]}>
+        <Text style={[styles.text, { color: colors.text }, isUser && { color: "#fff" }]}>{message.content}</Text>
 
         {message.confidence && (
           <View style={styles.confidenceRow}>
             <View
               style={[
                 styles.confidenceDot,
-                { backgroundColor: CONFIDENCE_COLOR[message.confidence] ?? Colors.textMuted },
+                { backgroundColor: CONFIDENCE_COLOR[message.confidence] ?? colors.textMuted },
               ]}
             />
-            <Text style={styles.confidenceLabel}>{message.confidence} confidence</Text>
+            <Text style={[styles.confidenceLabel, { color: colors.textSecondary }]}>{message.confidence} confidence</Text>
           </View>
         )}
 
@@ -40,10 +42,10 @@ export function ChatBubble({ message, onSourcePress, onFollowUp }: Props) {
             {message.sources.map((s) => (
               <Pressable
                 key={s.id}
-                style={styles.sourceChip}
+                style={[styles.sourceChip, { backgroundColor: colors.surfaceLight }]}
                 onPress={() => onSourcePress?.(s.id)}
               >
-                <Text style={styles.sourceText} numberOfLines={1}>
+                <Text style={[styles.sourceText, { color: colors.primary }]} numberOfLines={1}>
                   {s.place_name ?? s.summary?.slice(0, 30) ?? "Source"}
                 </Text>
               </Pressable>
@@ -57,10 +59,10 @@ export function ChatBubble({ message, onSourcePress, onFollowUp }: Props) {
           {message.follow_ups.map((f, i) => (
             <Pressable
               key={i}
-              style={styles.followUpPill}
+              style={[styles.followUpPill, { borderColor: colors.primary }]}
               onPress={() => onFollowUp?.(f)}
             >
-              <Text style={styles.followUpText}>{f}</Text>
+              <Text style={[styles.followUpText, { color: colors.primary }]}>{f}</Text>
             </Pressable>
           ))}
         </View>
@@ -74,10 +76,7 @@ const styles = StyleSheet.create({
   userWrapper: { alignItems: "flex-end" },
   aiWrapper: { alignItems: "flex-start" },
   bubble: { maxWidth: "85%", borderRadius: 16, padding: Spacing.md },
-  userBubble: { backgroundColor: Colors.primary, borderBottomRightRadius: 4 },
-  aiBubble: { backgroundColor: Colors.surface, borderBottomLeftRadius: 4 },
-  text: { color: Colors.text, fontSize: FontSize.md, lineHeight: 22 },
-  userText: { color: "#fff" },
+  text: { fontSize: FontSize.md, lineHeight: 22 },
   confidenceRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -85,7 +84,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   confidenceDot: { width: 6, height: 6, borderRadius: 3 },
-  confidenceLabel: { color: Colors.textSecondary, fontSize: FontSize.xs },
+  confidenceLabel: { fontSize: FontSize.xs },
   sourcesRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -93,12 +92,11 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   sourceChip: {
-    backgroundColor: Colors.surfaceLight,
     borderRadius: 8,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
   },
-  sourceText: { color: Colors.primary, fontSize: FontSize.xs },
+  sourceText: { fontSize: FontSize.xs },
   followUps: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -108,10 +106,9 @@ const styles = StyleSheet.create({
   },
   followUpPill: {
     borderWidth: 1,
-    borderColor: Colors.primary,
     borderRadius: 20,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
-  followUpText: { color: Colors.primary, fontSize: FontSize.sm },
+  followUpText: { fontSize: FontSize.sm },
 });

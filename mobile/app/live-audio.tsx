@@ -4,8 +4,9 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { useMediaRecorder } from "../hooks/useMediaRecorder";
+import { useTheme } from "../contexts/ThemeContext";
 import * as api from "../lib/api";
-import { Colors, FontSize, Spacing } from "../lib/constants";
+import { FontSize, Spacing } from "../lib/constants";
 
 function formatTime(sec: number) {
   const m = Math.floor(sec / 60)
@@ -17,6 +18,7 @@ function formatTime(sec: number) {
 
 export default function LiveAudioScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
   const [pendingUploads, setPendingUploads] = useState(0);
   const [completedUploads, setCompletedUploads] = useState(0);
   const [stopping, setStopping] = useState(false);
@@ -118,10 +120,10 @@ export default function LiveAudioScreen() {
   }, [recorder, router]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Close button */}
       <Pressable style={styles.closeBtn} onPress={handleStop}>
-        <Ionicons name="close" size={28} color={Colors.text} />
+        <Ionicons name="close" size={28} color={colors.text} />
       </Pressable>
 
       {/* Center content */}
@@ -129,18 +131,18 @@ export default function LiveAudioScreen() {
         <Animated.View
           style={[
             styles.pulseRing,
-            { transform: [{ scale: pulseAnim }] },
+            { borderColor: colors.primary + "40", transform: [{ scale: pulseAnim }] },
           ]}
         />
-        <View style={styles.micCircle}>
+        <View style={[styles.micCircle, { backgroundColor: colors.primary }]}>
           <Ionicons name="mic" size={48} color="#fff" />
         </View>
 
-        <Text style={styles.listeningText}>Listening...</Text>
-        <Text style={styles.elapsed}>{formatTime(recorder.elapsed)}</Text>
+        <Text style={[styles.listeningText, { color: colors.text }]}>Listening...</Text>
+        <Text style={[styles.elapsed, { color: colors.textSecondary }]}>{formatTime(recorder.elapsed)}</Text>
 
         {recorder.chunkCount > 0 && (
-          <Text style={styles.chunkStatus}>
+          <Text style={[styles.chunkStatus, { color: colors.textMuted }]}>
             {pendingUploads > 0
               ? `Uploading chunk ${completedUploads + 1}...`
               : `${completedUploads} chunk${completedUploads !== 1 ? "s" : ""} processed`}
@@ -154,8 +156,8 @@ export default function LiveAudioScreen() {
         onPress={handleStop}
         disabled={stopping}
       >
-        <View style={styles.stopSquare} />
-        <Text style={styles.stopText}>Stop</Text>
+        <View style={[styles.stopSquare, { backgroundColor: colors.error }]} />
+        <Text style={[styles.stopText, { color: colors.textSecondary }]}>Stop</Text>
       </Pressable>
     </View>
   );
@@ -164,7 +166,6 @@ export default function LiveAudioScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: Spacing.xxl * 2,
@@ -187,31 +188,26 @@ const styles = StyleSheet.create({
     height: 140,
     borderRadius: 70,
     borderWidth: 2,
-    borderColor: Colors.primary + "40",
   },
   micCircle: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
   listeningText: {
-    color: Colors.text,
     fontSize: FontSize.xl,
     fontWeight: "700",
     marginTop: Spacing.xl,
   },
   elapsed: {
-    color: Colors.textSecondary,
     fontSize: FontSize.xxl,
     fontWeight: "300",
     marginTop: Spacing.sm,
     fontVariant: ["tabular-nums"],
   },
   chunkStatus: {
-    color: Colors.textMuted,
     fontSize: FontSize.sm,
     marginTop: Spacing.lg,
   },
@@ -224,10 +220,8 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 12,
-    backgroundColor: Colors.error,
   },
   stopText: {
-    color: Colors.textSecondary,
     fontSize: FontSize.sm,
   },
 });
