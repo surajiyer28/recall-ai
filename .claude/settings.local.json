@@ -17,7 +17,8 @@
       "Bash(curl:*)",
       "Bash(ls:*)",
       "Bash(grep -r \"hang\\\\|stuck\\\\|block\\\\|freeze\\\\|infinite\\\\|wait\" 'C:/Users/Admin/Documents/Work Projects/Github/claude-hackathon/recallai' --include=*.py)",
-      "Bash(python3 -c \"import pytesseract; help\\(pytesseract.image_to_string\\)\")"
+      "Bash(python3 -c \"import pytesseract; help\\(pytesseract.image_to_string\\)\")",
+      "Bash(find /c/Users/Admin/Documents/Work Projects/Github/claude-hackathon/mobile/hooks -type f -name *.ts -o -name *.tsx)"
     ]
   }
 }

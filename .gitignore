@@ -56,6 +56,9 @@ recallai/demo_data/*.png
 /test_audio.sh
 /test_dialog.py
 
+# ============== Claude Code ==============
+claude-code-fixes.txt
+
 # ============== OS ==============
 .DS_Store
 Thumbs.db
