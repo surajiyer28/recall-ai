@@ -6,6 +6,8 @@ from app.models.processing_queue import ProcessingQueueJob
 from app.models.privacy_zone import PrivacyZone
 from app.models.knowledge_graph import EntityRelationship
 from app.models.notification import Notification
+from app.models.task import Task
+from app.models.person import Person, PersonHighlight
 
 __all__ = [
     "Base",
@@ -16,4 +18,7 @@ __all__ = [
     "PrivacyZone",
     "EntityRelationship",
     "Notification",
+    "Task",
+    "Person",
+    "PersonHighlight",
 ]

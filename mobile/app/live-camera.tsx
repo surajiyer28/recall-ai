@@ -2,12 +2,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
+import * as api from "../lib/api";
+import { Colors, FontSize, Spacing } from "../lib/constants";
+
+// Conditional imports — web-only hooks/components
 import { useWebCamera } from "../hooks/useWebCamera";
 import { useMediaRecorder } from "../hooks/useMediaRecorder";
 import { WebVideoElement } from "../components/WebVideoElement";
-import * as api from "../lib/api";
-import { Colors, FontSize, Spacing } from "../lib/constants";
+
+// Native camera (expo-camera)
+import { CameraView, useCameraPermissions } from "expo-camera";
 
 type Mode = "photo" | "video";
 
@@ -19,16 +25,27 @@ function formatTime(sec: number) {
   return `${m}:${s}`;
 }
 
-export default function LiveCameraScreen() {
+// ==========================================================================
+// Native Camera Screen (iOS / Android)
+// ==========================================================================
+
+function NativeCameraScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<Mode>("photo");
   const [isVideoRecording, setIsVideoRecording] = useState(false);
   const [flashFeedback, setFlashFeedback] = useState(false);
   const [pendingUploads, setPendingUploads] = useState(0);
-  const videoElRef = useRef<HTMLVideoElement | null>(null);
+  const [facing, setFacing] = useState<"front" | "back">("back");
+  const [elapsed, setElapsed] = useState(0);
+  const cameraRef = useRef<CameraView>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const chunkIndexRef = useRef(0);
   const locationRef = useRef<{ gps_lat: number; gps_lng: number } | undefined>(undefined);
 
-  // Fetch location once on mount
+  const [permission, requestPermission] = useCameraPermissions();
+
+  // Fetch location on mount
   useEffect(() => {
     Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
       .then(({ coords }) => {
@@ -37,10 +54,209 @@ export default function LiveCameraScreen() {
       .catch(() => {});
   }, []);
 
-  // Camera stream — include audio so video recording captures sound
+  // Request camera permission
+  useEffect(() => {
+    if (!permission?.granted) {
+      requestPermission();
+    }
+  }, [permission, requestPermission]);
+
+  // ---- Photo capture ----
+  const capturePhoto = useCallback(async () => {
+    if (!cameraRef.current) return;
+
+    setFlashFeedback(true);
+    setTimeout(() => setFlashFeedback(false), 200);
+
+    try {
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.85 });
+      if (photo?.uri) {
+        setPendingUploads((p) => p + 1);
+        api
+          .uploadPhotoFile(photo.uri, locationRef.current)
+          .catch(() => {})
+          .finally(() => setPendingUploads((p) => Math.max(0, p - 1)));
+      }
+    } catch (e) {
+      // Camera may not be ready
+    }
+  }, []);
+
+  // ---- Video recording ----
+  const toggleVideoRecording = useCallback(async () => {
+    if (!cameraRef.current) return;
+
+    if (isVideoRecording) {
+      // Stop
+      cameraRef.current.stopRecording();
+      setIsVideoRecording(false);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    } else {
+      // Start
+      setIsVideoRecording(true);
+      setElapsed(0);
+      chunkIndexRef.current = 0;
+      const t0 = Date.now();
+      timerRef.current = setInterval(() => {
+        setElapsed(Math.floor((Date.now() - t0) / 1000));
+      }, 1000);
+
+      try {
+        const video = await cameraRef.current.recordAsync({ maxDuration: 60 });
+        if (video?.uri) {
+          const idx = chunkIndexRef.current;
+          chunkIndexRef.current += 1;
+          setPendingUploads((p) => p + 1);
+          api
+            .uploadVideoFile(video.uri, idx, locationRef.current)
+            .catch(() => api.uploadVideoFile(video.uri, idx, locationRef.current).catch(() => {}))
+            .finally(() => setPendingUploads((p) => Math.max(0, p - 1)));
+        }
+      } catch (e) {
+        // Recording may have been interrupted
+      }
+
+      setIsVideoRecording(false);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+  }, [isVideoRecording]);
+
+  // ---- Close ----
+  const handleClose = useCallback(() => {
+    if (isVideoRecording && cameraRef.current) {
+      cameraRef.current.stopRecording();
+      setIsVideoRecording(false);
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    router.back();
+  }, [isVideoRecording, router]);
+
+  if (!permission?.granted) {
+    return (
+      <View style={styles.errorContainer}>
+        <Ionicons name="camera-outline" size={48} color={Colors.textMuted} />
+        <Text style={styles.errorText}>Camera permission required</Text>
+        <Pressable style={styles.backBtn} onPress={requestPermission}>
+          <Text style={styles.backBtnText}>Grant Permission</Text>
+        </Pressable>
+        <Pressable style={[styles.backBtn, { backgroundColor: Colors.surface }]} onPress={() => router.back()}>
+          <Text style={[styles.backBtnText, { color: Colors.text }]}>Go Back</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <CameraView
+        ref={cameraRef}
+        style={styles.viewfinder}
+        facing={facing}
+        mode={mode === "video" ? "video" : "picture"}
+      />
+
+      {/* Flash overlay */}
+      {flashFeedback && <View style={styles.flash} />}
+
+      {/* Recording indicator */}
+      {isVideoRecording && (
+        <View style={styles.recordingBadge}>
+          <View style={styles.redDot} />
+          <Text style={styles.recordingTime}>{formatTime(elapsed)}</Text>
+        </View>
+      )}
+
+      {/* Upload indicator */}
+      {pendingUploads > 0 && (
+        <View style={styles.uploadBadge}>
+          <Text style={styles.uploadText}>Uploading...</Text>
+        </View>
+      )}
+
+      {/* Top bar */}
+      <View style={[styles.topBar, { paddingTop: insets.top + Spacing.sm }]}>
+        <Pressable onPress={handleClose} style={styles.iconBtn}>
+          <Ionicons name="close" size={28} color="#fff" />
+        </Pressable>
+
+        <View style={styles.modeToggle}>
+          <Pressable
+            style={[styles.modeBtn, mode === "photo" && styles.modeBtnActive]}
+            onPress={() => !isVideoRecording && setMode("photo")}
+          >
+            <Text style={[styles.modeText, mode === "photo" && styles.modeTextActive]}>
+              Photo
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.modeBtn, mode === "video" && styles.modeBtnActive]}
+            onPress={() => !isVideoRecording && setMode("video")}
+          >
+            <Text style={[styles.modeText, mode === "video" && styles.modeTextActive]}>
+              Video
+            </Text>
+          </Pressable>
+        </View>
+
+        <Pressable onPress={() => setFacing((f) => (f === "back" ? "front" : "back"))} style={styles.iconBtn}>
+          <Ionicons name="camera-reverse" size={24} color="#fff" />
+        </Pressable>
+      </View>
+
+      {/* Bottom bar */}
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.xxl }]}>
+        {mode === "photo" ? (
+          <Pressable style={styles.shutterBtn} onPress={capturePhoto}>
+            <View style={styles.shutterInner} />
+          </Pressable>
+        ) : (
+          <Pressable
+            style={[styles.shutterBtn, isVideoRecording && styles.shutterRecording]}
+            onPress={toggleVideoRecording}
+          >
+            {isVideoRecording ? (
+              <View style={styles.stopSquare} />
+            ) : (
+              <View style={styles.recordDot} />
+            )}
+          </Pressable>
+        )}
+      </View>
+    </View>
+  );
+}
+
+// ==========================================================================
+// Web Camera Screen (browser)
+// ==========================================================================
+
+function WebCameraScreen() {
+  const router = useRouter();
+  const [mode, setMode] = useState<Mode>("photo");
+  const [isVideoRecording, setIsVideoRecording] = useState(false);
+  const [flashFeedback, setFlashFeedback] = useState(false);
+  const [pendingUploads, setPendingUploads] = useState(0);
+  const locationRef = useRef<{ gps_lat: number; gps_lng: number } | undefined>(undefined);
+
+  useEffect(() => {
+    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+      .then(({ coords }) => {
+        locationRef.current = { gps_lat: coords.latitude, gps_lng: coords.longitude };
+      })
+      .catch(() => {});
+  }, []);
+
   const camera = useWebCamera({ video: true, audio: true });
 
-  // Video chunk recorder
   const onVideoChunk = useCallback((blob: Blob, index: number) => {
     const loc = locationRef.current;
     setPendingUploads((p) => p + 1);
@@ -56,7 +272,6 @@ export default function LiveCameraScreen() {
     onChunk: onVideoChunk,
   });
 
-  // Start camera on mount
   useEffect(() => {
     camera.start();
     return () => {
@@ -66,9 +281,8 @@ export default function LiveCameraScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---- Photo capture ----
   const capturePhoto = useCallback(() => {
-    if (Platform.OS !== "web" || !camera.stream) return;
+    if (!camera.stream) return;
     const videoTrack = camera.stream.getVideoTracks()[0];
     if (!videoTrack) return;
 
@@ -76,7 +290,6 @@ export default function LiveCameraScreen() {
     const w = settings.width ?? 1280;
     const h = settings.height ?? 720;
 
-    // Find the video element in the DOM
     const videoEls = Array.from(document.querySelectorAll("video"));
     let videoEl: HTMLVideoElement | null = null;
     for (let i = 0; i < videoEls.length; i++) {
@@ -94,7 +307,6 @@ export default function LiveCameraScreen() {
     if (!ctx) return;
     ctx.drawImage(videoEl, 0, 0, w, h);
 
-    // Flash feedback
     setFlashFeedback(true);
     setTimeout(() => setFlashFeedback(false), 200);
 
@@ -113,7 +325,6 @@ export default function LiveCameraScreen() {
     );
   }, [camera.stream]);
 
-  // ---- Video recording ----
   const toggleVideoRecording = useCallback(() => {
     if (!camera.stream) return;
     if (isVideoRecording) {
@@ -125,7 +336,6 @@ export default function LiveCameraScreen() {
     }
   }, [camera.stream, isVideoRecording, recorder]);
 
-  // ---- Close ----
   const handleClose = useCallback(() => {
     if (isVideoRecording) {
       recorder.stop();
@@ -134,15 +344,6 @@ export default function LiveCameraScreen() {
     camera.stop();
     router.back();
   }, [isVideoRecording, recorder, camera, router]);
-
-  // ---- Mode toggle ----
-  const toggleMode = useCallback(() => {
-    if (isVideoRecording) {
-      recorder.stop();
-      setIsVideoRecording(false);
-    }
-    setMode((m) => (m === "photo" ? "video" : "photo"));
-  }, [isVideoRecording, recorder]);
 
   if (camera.error) {
     return (
@@ -159,13 +360,10 @@ export default function LiveCameraScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Camera viewfinder */}
       <WebVideoElement stream={camera.stream} style={styles.viewfinder} muted />
 
-      {/* Flash overlay for photo capture */}
       {flashFeedback && <View style={styles.flash} />}
 
-      {/* Recording indicator */}
       {isVideoRecording && (
         <View style={styles.recordingBadge}>
           <View style={styles.redDot} />
@@ -173,14 +371,12 @@ export default function LiveCameraScreen() {
         </View>
       )}
 
-      {/* Upload indicator */}
       {pendingUploads > 0 && (
         <View style={styles.uploadBadge}>
           <Text style={styles.uploadText}>Uploading...</Text>
         </View>
       )}
 
-      {/* Top bar */}
       <View style={styles.topBar}>
         <Pressable onPress={handleClose} style={styles.iconBtn}>
           <Ionicons name="close" size={28} color="#fff" />
@@ -210,7 +406,6 @@ export default function LiveCameraScreen() {
         </Pressable>
       </View>
 
-      {/* Bottom bar */}
       <View style={styles.bottomBar}>
         {mode === "photo" ? (
           <Pressable style={styles.shutterBtn} onPress={capturePhoto}>
@@ -233,6 +428,17 @@ export default function LiveCameraScreen() {
   );
 }
 
+// ==========================================================================
+// Entry point — pick the right implementation
+// ==========================================================================
+
+export default function LiveCameraScreen() {
+  if (Platform.OS === "web") {
+    return <WebCameraScreen />;
+  }
+  return <NativeCameraScreen />;
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -247,7 +453,6 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     zIndex: 20,
   },
-  // Top bar
   topBar: {
     position: "absolute",
     top: 0,
@@ -290,7 +495,6 @@ const styles = StyleSheet.create({
   modeTextActive: {
     color: "#fff",
   },
-  // Recording badge
   recordingBadge: {
     position: "absolute",
     top: Spacing.xxl + 56,
@@ -315,7 +519,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     fontVariant: ["tabular-nums"],
   },
-  // Upload badge
   uploadBadge: {
     position: "absolute",
     top: Spacing.xxl + 56 + 36,
@@ -330,7 +533,6 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: FontSize.xs,
   },
-  // Bottom bar
   bottomBar: {
     position: "absolute",
     bottom: 0,
@@ -370,7 +572,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: Colors.error,
   },
-  // Error state
   errorContainer: {
     flex: 1,
     backgroundColor: Colors.background,

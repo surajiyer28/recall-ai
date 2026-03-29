@@ -39,6 +39,10 @@
     "plugins": [
       "expo-router",
       [
+        "expo-camera",
+        { "cameraPermission": "RecallAI needs camera access to capture photos and videos.", "microphonePermission": "RecallAI needs microphone access to record video with sound." }
+      ],
+      [
         "expo-location",
         { "locationWhenInUsePermission": "RecallAI uses your location to tag memories." }
       ],

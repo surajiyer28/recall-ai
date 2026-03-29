@@ -7,9 +7,12 @@ import type {
   MemoryDetail,
   MemoryStats,
   NotificationItem,
+  PersonHighlight,
+  PersonSummary,
   PrivacyZone,
   QuietHoursSettings,
   RetentionPolicy,
+  TaskItem,
   TimelineResponse,
   UploadResponse,
 } from "./types";
@@ -260,6 +263,73 @@ export async function uploadPhotoBlob(
   if (ctx?.gps_lat != null) form.append("gps_lat", String(ctx.gps_lat));
   if (ctx?.gps_lng != null) form.append("gps_lng", String(ctx.gps_lng));
   return request<UploadResponse>("/capture/upload/image", { method: "POST", body: form });
+}
+
+// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// People
+// ---------------------------------------------------------------------------
+
+export const getPeople = () => request<PersonSummary[]>("/people");
+export const getPersonHighlights = (personId: string) =>
+  request<PersonHighlight[]>(`/people/${personId}/highlights`);
+export const deletePerson = (personId: string) => del(`/people/${personId}`);
+
+// ---------------------------------------------------------------------------
+// Tasks
+// ---------------------------------------------------------------------------
+
+export const getTasks = (status?: string) => {
+  const qs = status ? `?status=${status}` : "";
+  return request<TaskItem[]>(`/tasks${qs}`);
+};
+
+export const updateTask = (taskId: string, body: { status?: string; title?: string; deadline?: string }) =>
+  request<TaskItem>(`/tasks/${taskId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+export const deleteTask = (taskId: string) => del(`/tasks/${taskId}`);
+
+// ---------------------------------------------------------------------------
+// Native file uploads (for mobile - uses file URIs instead of Blobs)
+// ---------------------------------------------------------------------------
+
+type LocationCtx = { place_name?: string; gps_lat?: number; gps_lng?: number };
+
+export async function uploadPhotoFile(
+  uri: string,
+  ctx?: LocationCtx
+): Promise<UploadResponse> {
+  const form = new FormData();
+  form.append("files", {
+    uri,
+    name: "photo.jpg",
+    type: "image/jpeg",
+  } as unknown as Blob);
+  if (ctx?.place_name) form.append("place_name", ctx.place_name);
+  if (ctx?.gps_lat != null) form.append("gps_lat", String(ctx.gps_lat));
+  if (ctx?.gps_lng != null) form.append("gps_lng", String(ctx.gps_lng));
+  return request<UploadResponse>("/capture/upload/image", { method: "POST", body: form });
+}
+
+export async function uploadVideoFile(
+  uri: string,
+  chunkIndex: number,
+  ctx?: LocationCtx
+): Promise<UploadResponse> {
+  const form = new FormData();
+  form.append("file", {
+    uri,
+    name: `live_video_${chunkIndex}.mp4`,
+    type: "video/mp4",
+  } as unknown as Blob);
+  if (ctx?.place_name) form.append("place_name", ctx.place_name);
+  if (ctx?.gps_lat != null) form.append("gps_lat", String(ctx.gps_lat));
+  if (ctx?.gps_lng != null) form.append("gps_lng", String(ctx.gps_lng));
+  return request<UploadResponse>("/capture/upload/video", { method: "POST", body: form });
 }
 
 // ---------------------------------------------------------------------------

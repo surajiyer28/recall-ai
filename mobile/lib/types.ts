@@ -112,6 +112,32 @@ export interface NotificationItem {
   created_at: string;
 }
 
+// -- Tasks --
+export interface TaskItem {
+  id: string;
+  memory_id: string;
+  title: string;
+  description?: string;
+  deadline?: string;
+  status: "pending" | "done" | "dismissed";
+  created_at: string;
+}
+
+// -- People --
+export interface PersonSummary {
+  id: string;
+  name: string;
+  highlight_count: number;
+  created_at: string;
+}
+
+export interface PersonHighlight {
+  id: string;
+  highlight: string;
+  memory_id: string;
+  created_at: string;
+}
+
 // -- Privacy --
 export interface PrivacyZone {
   id: string;
