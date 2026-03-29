@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "RecallAI",
+    "slug": "recallai",
+    "scheme": "recallai",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "RecallAI needs microphone access to capture conversations.",
+        "NSLocationWhenInUseUsageDescription": "RecallAI uses your location to tag memories with places.",
+        "NSPhotoLibraryUsageDescription": "RecallAI needs photo access to upload images as memories."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0F172A",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "RECORD_AUDIO",
+        "ACCESS_FINE_LOCATION",
+        "READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        { "locationWhenInUsePermission": "RecallAI uses your location to tag memories." }
+      ],
+      [
+        "expo-av",
+        { "microphonePermission": "RecallAI needs microphone access to capture conversations." }
+      ]
+    ]
+  }
+}
