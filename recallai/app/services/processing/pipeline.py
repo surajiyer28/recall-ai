@@ -25,6 +25,7 @@ from app.services.processing.frame_extractor import (
 )
 from app.services.processing.ocr_service import extract_text_from_images
 from app.services.processing.vision_service import get_vision_service
+from app.services.processing.person_extractor import extract_and_store_people
 from app.services.storage.vector_store import add_memory_vectors
 from app.utils.file_handling import delete_file
 
@@ -179,6 +180,14 @@ async def process_audio(db: AsyncSession, session_id: str, audio_path: str) -> d
     ner_result = await _run_ner_and_summarize(db, session_id, result["transcript"])
     result.update(ner_result)
 
+    # Extract people, highlights, and tasks from transcript
+    memory = await _get_memory_for_session(db, session_id)
+    if memory and result["transcript"]:
+        try:
+            await extract_and_store_people(db, memory.id, result["transcript"])
+        except Exception as e:
+            logger.error("Person extraction failed for session %s: %s", session_id, e)
+
     return result
 
 
@@ -297,6 +306,14 @@ async def process_video(db: AsyncSession, session_id: str, video_path: str) -> d
     )
     result.update(ner_result)
 
+    # Extract people, highlights, and tasks from video caption
+    memory = await _get_memory_for_session(db, session_id)
+    if memory and result["transcript"]:
+        try:
+            await extract_and_store_people(db, memory.id, result["transcript"])
+        except Exception as e:
+            logger.error("Person extraction failed for session %s: %s", session_id, e)
+
     return result
 
 
@@ -381,6 +398,14 @@ async def process_images(
     if all_text.strip():
         ner_result = await _run_ner_and_summarize(db, session_id, all_text)
         result.update(ner_result)
+
+    # Extract people, highlights, and tasks from image captions + OCR
+    memory = await _get_memory_for_session(db, session_id)
+    if memory and all_text.strip():
+        try:
+            await extract_and_store_people(db, memory.id, all_text)
+        except Exception as e:
+            logger.error("Person extraction failed for session %s: %s", session_id, e)
 
     return result
 

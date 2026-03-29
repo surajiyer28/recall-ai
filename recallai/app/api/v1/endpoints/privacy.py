@@ -158,6 +158,11 @@ async def delete_all_data(db: AsyncSession = Depends(get_db)):
     for row in memories_result.all():
         delete_memory_vectors(row[0])
 
+    from app.models.task import Task
+    from app.models.person import PersonHighlight, Person
+    await db.execute(delete(PersonHighlight))
+    await db.execute(delete(Task))
+    await db.execute(delete(Person))
     await db.execute(delete(EntityRelationship))
     await db.execute(delete(Entity))
     await db.execute(delete(Notification))

@@ -34,3 +34,4 @@ class Memory(Base):
     session = relationship("CaptureSession", back_populates="memories")
     entities = relationship("Entity", back_populates="memory", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="memory", cascade="all, delete-orphan")
+    tasks = relationship("Task", back_populates="memory", cascade="all, delete-orphan")

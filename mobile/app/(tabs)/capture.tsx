@@ -15,11 +15,10 @@ import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import { useCapture } from "../../contexts/CaptureContext";
 import { useApi } from "../../hooks/useApi";
-import { CaptureStatusBadge } from "../../components/CaptureStatusBadge";
 import { CaptureSessionCard } from "../../components/CaptureSessionCard";
 import * as api from "../../lib/api";
 import { Colors, FontSize, Spacing } from "../../lib/constants";
-import type { CaptureSession, MemoryStats } from "../../lib/types";
+import type { CaptureSession } from "../../lib/types";
 
 export default function CaptureScreen() {
   const router = useRouter();
@@ -28,8 +27,6 @@ export default function CaptureScreen() {
     () => api.getSessions(10),
     []
   );
-  const stats = useApi<MemoryStats>(() => api.getTimelineStats(), []);
-
   const [busy, setBusy] = useState(false);
 
   // --------------- Location helper ---------------
@@ -96,36 +93,13 @@ export default function CaptureScreen() {
     }
   }, [getLocation, sessions]);
 
-  // --------------- Render ---------------
-  const isActive = capture.capture_status === "active";
-
   return (
     <View style={styles.container}>
-      {/* Status bar */}
-      <View style={styles.statusRow}>
-        <CaptureStatusBadge status={capture.capture_status} />
-        <Pressable
-          style={[styles.toggleBtn, !isActive && styles.toggleBtnResume]}
-          onPress={isActive ? capture.pause : capture.resume}
-        >
-          <Text style={styles.toggleText}>{isActive ? "Pause" : "Resume"}</Text>
-        </Pressable>
-      </View>
-
-      {/* Stats */}
-      {stats.data && (
-        <Text style={styles.statsText}>
-          {stats.data.today_count} memories captured today ·{" "}
-          {stats.data.total_count} total
-        </Text>
-      )}
-
       {/* Live capture buttons */}
       <View style={styles.liveRow}>
         <Pressable
-          style={[styles.liveBtn, !isActive && { opacity: 0.4 }]}
+          style={styles.liveBtn}
           onPress={() => router.push("/live-audio")}
-          disabled={!isActive}
         >
           <View style={[styles.liveBtnIcon, { backgroundColor: Colors.primary }]}>
             <Ionicons name="mic" size={28} color="#fff" />
@@ -134,9 +108,8 @@ export default function CaptureScreen() {
         </Pressable>
 
         <Pressable
-          style={[styles.liveBtn, !isActive && { opacity: 0.4 }]}
+          style={styles.liveBtn}
           onPress={() => router.push("/live-camera")}
-          disabled={!isActive}
         >
           <View style={[styles.liveBtnIcon, { backgroundColor: Colors.success }]}>
             <Ionicons name="camera" size={28} color="#fff" />
@@ -148,9 +121,9 @@ export default function CaptureScreen() {
       {/* Upload actions */}
       <Text style={styles.uploadTitle}>Upload from device</Text>
       <View style={styles.uploadRow}>
-        <UploadBtn icon="image" label="Image" onPress={pickImage} disabled={busy || !isActive} />
-        <UploadBtn icon="musical-notes" label="Audio" onPress={pickAudioFile} disabled={busy || !isActive} />
-        <UploadBtn icon="videocam" label="Video" onPress={pickVideoFile} disabled={busy || !isActive} />
+        <UploadBtn icon="image" label="Image" onPress={pickImage} disabled={busy} />
+        <UploadBtn icon="musical-notes" label="Audio" onPress={pickAudioFile} disabled={busy} />
+        <UploadBtn icon="videocam" label="Video" onPress={pickVideoFile} disabled={busy} />
       </View>
 
       {busy && (
@@ -198,26 +171,6 @@ function UploadBtn({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background, paddingTop: Spacing.lg },
-  statusRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: Spacing.lg,
-  },
-  toggleBtn: {
-    backgroundColor: Colors.surfaceLight,
-    borderRadius: 8,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-  },
-  toggleBtnResume: { backgroundColor: Colors.primary },
-  toggleText: { color: Colors.text, fontSize: FontSize.sm, fontWeight: "600" },
-  statsText: {
-    color: Colors.textSecondary,
-    fontSize: FontSize.sm,
-    paddingHorizontal: Spacing.lg,
-    marginTop: Spacing.sm,
-  },
   // Live capture
   liveRow: {
     flexDirection: "row",

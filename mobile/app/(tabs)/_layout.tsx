@@ -25,6 +25,24 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
+        name="timeline"
+        options={{
+          title: "Timeline",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="time" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="people"
+        options={{
+          title: "People",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="capture"
         options={{
           title: "Capture",
@@ -38,20 +56,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="tasks"
+        options={{
+          title: "Tasks",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="checkbox-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="chat"
         options={{
           title: "Ask",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="chatbubble-ellipses" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="timeline"
-        options={{
-          title: "Timeline",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="time" size={size} color={color} />
           ),
         }}
       />
