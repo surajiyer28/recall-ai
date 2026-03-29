@@ -1,0 +1,61 @@
+# ============== Python (backend) ==============
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+
+# ============== Node (mobile) ==============
+node_modules/
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.tsbuildinfo
+
+# ============== Expo / React Native ==============
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.metro-health-check*
+.kotlin/
+*.orig.*
+mobile/ios/
+mobile/android/
+
+# ============== Secrets & env ==============
+.env
+.env*.local
+*.credentials.json
+civil-lightning-*.json
+*.pem
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# ============== Uploads & media ==============
+recallai/uploads/audio/*
+recallai/uploads/video/*
+recallai/uploads/images/*
+!recallai/uploads/**/.gitkeep
+recallai/demo_data/*.mp3
+recallai/demo_data/*.wav
+recallai/demo_data/*.mp4
+recallai/demo_data/*.jpg
+recallai/demo_data/*.png
+
+# ============== Database ==============
+*.db
+
+# ============== Test scripts (root) ==============
+/record_and_test.py
+/test_audio.sh
+/test_dialog.py
+
+# ============== OS ==============
+.DS_Store
+Thumbs.db

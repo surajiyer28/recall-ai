@@ -1,0 +1,47 @@
+# API Framework
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Database
+sqlalchemy[asyncio]
+alembic
+asyncpg
+psycopg2-binary
+
+# Vector Store
+chromadb
+
+# AI / ML
+anthropic
+google-cloud-aiplatform
+openai
+spacy
+
+# NER model (download separately: python -m spacy download en_core_web_trf)
+# en-core-web-trf
+
+# Audio / Video / Image processing
+ffmpeg-python
+Pillow
+pytesseract
+
+# Entity linking
+rapidfuzz
+
+# Configuration
+pydantic-settings
+python-dotenv
+
+# HTTP
+httpx
+
+# Retry logic
+tenacity
+
+# Geocoding
+geopy
+
+# Testing
+pytest
+pytest-asyncio
