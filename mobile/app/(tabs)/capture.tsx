@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -9,10 +9,10 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Audio } from "expo-av";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import * as Location from "expo-location";
+import { useRouter } from "expo-router";
 import { useCapture } from "../../contexts/CaptureContext";
 import { useApi } from "../../hooks/useApi";
 import { CaptureStatusBadge } from "../../components/CaptureStatusBadge";
@@ -22,6 +22,7 @@ import { Colors, FontSize, Spacing } from "../../lib/constants";
 import type { CaptureSession, MemoryStats } from "../../lib/types";
 
 export default function CaptureScreen() {
+  const router = useRouter();
   const capture = useCapture();
   const sessions = useApi<{ sessions: CaptureSession[]; total: number }>(
     () => api.getSessions(10),
@@ -29,8 +30,6 @@ export default function CaptureScreen() {
   );
   const stats = useApi<MemoryStats>(() => api.getTimelineStats(), []);
 
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
-  const sessionIdRef = useRef<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   // --------------- Location helper ---------------
@@ -44,41 +43,6 @@ export default function CaptureScreen() {
       return {};
     }
   }, []);
-
-  // --------------- Recording ---------------
-  const startRecording = useCallback(async () => {
-    try {
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording: rec } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      const loc = await getLocation();
-      const res = await api.startRecording(loc);
-      sessionIdRef.current = res.session_id;
-      setRecording(rec);
-    } catch (e: unknown) {
-      Alert.alert("Error", e instanceof Error ? e.message : "Could not start recording");
-    }
-  }, [getLocation]);
-
-  const stopRecording = useCallback(async () => {
-    if (!recording || !sessionIdRef.current) return;
-    setBusy(true);
-    try {
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-      if (uri) {
-        await api.stopRecording(sessionIdRef.current, uri);
-      }
-      setRecording(null);
-      sessionIdRef.current = null;
-      sessions.refetch();
-    } catch (e: unknown) {
-      Alert.alert("Error", e instanceof Error ? e.message : "Could not stop recording");
-    } finally {
-      setBusy(false);
-    }
-  }, [recording, sessions]);
 
   // --------------- Uploads ---------------
   const pickImage = useCallback(async () => {
@@ -156,34 +120,45 @@ export default function CaptureScreen() {
         </Text>
       )}
 
-      {/* Record button */}
-      <View style={styles.recordRow}>
+      {/* Live capture buttons */}
+      <View style={styles.liveRow}>
         <Pressable
-          style={[styles.recordBtn, recording ? styles.recordBtnActive : null]}
-          onPress={recording ? stopRecording : startRecording}
-          disabled={busy || !isActive}
+          style={[styles.liveBtn, !isActive && { opacity: 0.4 }]}
+          onPress={() => router.push("/live-audio")}
+          disabled={!isActive}
         >
-          {busy ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Ionicons
-              name={recording ? "stop" : "mic"}
-              size={28}
-              color="#fff"
-            />
-          )}
+          <View style={[styles.liveBtnIcon, { backgroundColor: Colors.primary }]}>
+            <Ionicons name="mic" size={28} color="#fff" />
+          </View>
+          <Text style={styles.liveBtnLabel}>Live Audio</Text>
         </Pressable>
-        <Text style={styles.recordLabel}>
-          {recording ? "Tap to stop" : "Tap to record"}
-        </Text>
+
+        <Pressable
+          style={[styles.liveBtn, !isActive && { opacity: 0.4 }]}
+          onPress={() => router.push("/live-camera")}
+          disabled={!isActive}
+        >
+          <View style={[styles.liveBtnIcon, { backgroundColor: Colors.success }]}>
+            <Ionicons name="camera" size={28} color="#fff" />
+          </View>
+          <Text style={styles.liveBtnLabel}>Camera</Text>
+        </Pressable>
       </View>
 
       {/* Upload actions */}
+      <Text style={styles.uploadTitle}>Upload from device</Text>
       <View style={styles.uploadRow}>
         <UploadBtn icon="image" label="Image" onPress={pickImage} disabled={busy || !isActive} />
         <UploadBtn icon="musical-notes" label="Audio" onPress={pickAudioFile} disabled={busy || !isActive} />
         <UploadBtn icon="videocam" label="Video" onPress={pickVideoFile} disabled={busy || !isActive} />
       </View>
+
+      {busy && (
+        <View style={styles.busyRow}>
+          <ActivityIndicator size="small" color={Colors.primary} />
+          <Text style={styles.busyText}>Uploading...</Text>
+        </View>
+      )}
 
       {/* Recent sessions */}
       <Text style={styles.sectionTitle}>Recent Captures</Text>
@@ -243,25 +218,55 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     marginTop: Spacing.sm,
   },
-  recordRow: { alignItems: "center", marginVertical: Spacing.xl },
-  recordBtn: {
+  // Live capture
+  liveRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: Spacing.xxl,
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.lg,
+  },
+  liveBtn: {
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  liveBtnIcon: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
-  recordBtnActive: { backgroundColor: Colors.error },
-  recordLabel: { color: Colors.textSecondary, fontSize: FontSize.sm, marginTop: Spacing.sm },
+  liveBtnLabel: {
+    color: Colors.text,
+    fontSize: FontSize.sm,
+    fontWeight: "600",
+  },
+  // Uploads
+  uploadTitle: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.sm,
+  },
   uploadRow: {
     flexDirection: "row",
     justifyContent: "center",
     gap: Spacing.xl,
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
   uploadBtn: { alignItems: "center", gap: Spacing.xs },
   uploadLabel: { color: Colors.textSecondary, fontSize: FontSize.xs },
+  busyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  busyText: { color: Colors.textSecondary, fontSize: FontSize.sm },
   sectionTitle: {
     color: Colors.text,
     fontSize: FontSize.lg,

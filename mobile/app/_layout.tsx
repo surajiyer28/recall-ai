@@ -24,6 +24,14 @@ export default function RootLayout() {
           name="memory/[id]"
           options={{ title: "Memory Detail", presentation: "modal" }}
         />
+        <Stack.Screen
+          name="live-audio"
+          options={{ headerShown: false, presentation: "fullScreenModal" }}
+        />
+        <Stack.Screen
+          name="live-camera"
+          options={{ headerShown: false, presentation: "fullScreenModal" }}
+        />
       </Stack>
     </CaptureProvider>
   );

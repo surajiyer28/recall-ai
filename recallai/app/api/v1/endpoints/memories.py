@@ -48,8 +48,8 @@ async def get_memory(memory_id: str, db: AsyncSession = Depends(get_db)):
         for e in entities_result.scalars().all()
     ]
 
-    detail = MemoryDetail.model_validate(memory)
-    detail.entities = entities
+    base = MemoryOut.model_validate(memory)
+    detail = MemoryDetail(**base.model_dump(), entities=entities)
     return detail
 
 

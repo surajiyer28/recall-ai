@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 import * as Location from "expo-location";
 import AsyncStorage from "@react-native-async-storage/async-storage" ;
 import { Colors, FontSize, Spacing } from "../../lib/constants";
-import * as api from "../../lib/api";
 
 type Status = "pending" | "granted" | "denied";
 
@@ -25,6 +24,7 @@ const storage = {
 export default function Permissions() {
   const router = useRouter();
   const [mic, setMic] = useState<Status>("pending");
+  const [cam, setCam] = useState<Status>("pending");
   const [loc, setLoc] = useState<Status>("pending");
 
   useEffect(() => {
@@ -33,12 +33,33 @@ export default function Permissions() {
       if (micOk) setMic("granted");
       const { granted: locOk } = await Location.getForegroundPermissionsAsync();
       if (locOk) setLoc("granted");
+      // Check camera on web
+      if (Platform.OS === "web") {
+        try {
+          const result = await navigator.permissions.query({ name: "camera" as PermissionName });
+          if (result.state === "granted") setCam("granted");
+        } catch {
+          // permissions API not supported
+        }
+      }
     })();
   }, []);
 
   const requestMic = useCallback(async () => {
     const { granted } = await Audio.requestPermissionsAsync();
     setMic(granted ? "granted" : "denied");
+  }, []);
+
+  const requestCam = useCallback(async () => {
+    if (Platform.OS === "web") {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream.getTracks().forEach((t) => t.stop());
+        setCam("granted");
+      } catch {
+        setCam("denied");
+      }
+    }
   }, []);
 
   const requestLoc = useCallback(async () => {
@@ -48,8 +69,6 @@ export default function Permissions() {
 
   const proceed = useCallback(async () => {
     await storage.setItem("onboarding_complete", "1");
-    // Seed demo data in background
-    api.seedDemo().catch(() => {});
     router.replace("/(tabs)/capture");
   }, [router]);
 
@@ -66,6 +85,12 @@ export default function Permissions() {
           label="Microphone"
           status={mic}
           onRequest={requestMic}
+        />
+        <PermRow
+          icon="camera"
+          label="Camera"
+          status={cam}
+          onRequest={requestCam}
         />
         <PermRow
           icon="location"

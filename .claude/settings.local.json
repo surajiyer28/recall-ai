@@ -14,7 +14,8 @@
       "Bash(python -m json.tool)",
       "Bash(bash \"/c/Users/Admin/Documents/Work Projects/Github/claude-hackathon/test_audio.sh\" \"/c/Users/Admin/OneDrive/Desktop/test_audio.ogg\" 2>&1)",
       "Bash(xargs grep:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(ls:*)"
     ]
   }
 }

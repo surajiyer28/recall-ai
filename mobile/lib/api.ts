@@ -219,6 +219,50 @@ export const setRetention = (p: RetentionPolicy) =>
   post<RetentionPolicy>("/privacy/retention", p);
 
 // ---------------------------------------------------------------------------
+// Live capture (blob uploads for web MediaRecorder)
+// ---------------------------------------------------------------------------
+
+export async function uploadAudioBlob(
+  blob: Blob,
+  chunkIndex: number,
+  ctx?: { place_name?: string; gps_lat?: number; gps_lng?: number }
+): Promise<UploadResponse> {
+  const ext = blob.type.includes("webm") ? "webm" : "wav";
+  const form = new FormData();
+  form.append("file", new File([blob], `live_audio_${chunkIndex}.${ext}`, { type: blob.type }));
+  if (ctx?.place_name) form.append("place_name", ctx.place_name);
+  if (ctx?.gps_lat != null) form.append("gps_lat", String(ctx.gps_lat));
+  if (ctx?.gps_lng != null) form.append("gps_lng", String(ctx.gps_lng));
+  return request<UploadResponse>("/capture/upload/audio", { method: "POST", body: form });
+}
+
+export async function uploadVideoBlob(
+  blob: Blob,
+  chunkIndex: number,
+  ctx?: { place_name?: string; gps_lat?: number; gps_lng?: number }
+): Promise<UploadResponse> {
+  const ext = blob.type.includes("mp4") ? "mp4" : "webm";
+  const form = new FormData();
+  form.append("file", new File([blob], `live_video_${chunkIndex}.${ext}`, { type: blob.type }));
+  if (ctx?.place_name) form.append("place_name", ctx.place_name);
+  if (ctx?.gps_lat != null) form.append("gps_lat", String(ctx.gps_lat));
+  if (ctx?.gps_lng != null) form.append("gps_lng", String(ctx.gps_lng));
+  return request<UploadResponse>("/capture/upload/video", { method: "POST", body: form });
+}
+
+export async function uploadPhotoBlob(
+  blob: Blob,
+  ctx?: { place_name?: string; gps_lat?: number; gps_lng?: number }
+): Promise<UploadResponse> {
+  const form = new FormData();
+  form.append("files", new File([blob], "photo.jpg", { type: "image/jpeg" }));
+  if (ctx?.place_name) form.append("place_name", ctx.place_name);
+  if (ctx?.gps_lat != null) form.append("gps_lat", String(ctx.gps_lat));
+  if (ctx?.gps_lng != null) form.append("gps_lng", String(ctx.gps_lng));
+  return request<UploadResponse>("/capture/upload/image", { method: "POST", body: form });
+}
+
+// ---------------------------------------------------------------------------
 // Demo
 // ---------------------------------------------------------------------------
 
