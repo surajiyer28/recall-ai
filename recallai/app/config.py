@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     postgres_password: str = "recallai_dev"
     postgres_db: str = "recallai"
 
+    # Railway / hosted Postgres provides a full URL
+    database_url: str = ""
+
     # ChromaDB
     chroma_host: str = "localhost"
     chroma_port: int = 8000
@@ -32,6 +35,14 @@ class Settings(BaseSettings):
 
     @property
     def postgres_url(self) -> str:
+        if self.database_url:
+            url = self.database_url
+            # Railway gives postgres:// but asyncpg needs postgresql+asyncpg://
+            if url.startswith("postgres://"):
+                url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+            elif url.startswith("postgresql://"):
+                url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            return url
         return (
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
@@ -39,6 +50,13 @@ class Settings(BaseSettings):
 
     @property
     def postgres_url_sync(self) -> str:
+        if self.database_url:
+            url = self.database_url
+            if url.startswith("postgres://"):
+                url = url.replace("postgres://", "postgresql+psycopg2://", 1)
+            elif url.startswith("postgresql://"):
+                url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+            return url
         return (
             f"postgresql+psycopg2://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"

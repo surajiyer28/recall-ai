@@ -12,15 +12,24 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-db_host = os.getenv("POSTGRES_HOST", "localhost")
-db_port = os.getenv("POSTGRES_PORT", "5433")
-db_user = os.getenv("POSTGRES_USER", "recallai")
-db_pass = os.getenv("POSTGRES_PASSWORD", "recallai_dev")
-db_name = os.getenv("POSTGRES_DB", "recallai")
-config.set_main_option(
-    "sqlalchemy.url",
-    f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}",
-)
+database_url = os.getenv("DATABASE_URL", "")
+if database_url:
+    # Railway gives postgres:// but psycopg2 needs postgresql+psycopg2://
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql+psycopg2://", 1)
+    elif database_url.startswith("postgresql://"):
+        database_url = database_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    config.set_main_option("sqlalchemy.url", database_url)
+else:
+    db_host = os.getenv("POSTGRES_HOST", "localhost")
+    db_port = os.getenv("POSTGRES_PORT", "5433")
+    db_user = os.getenv("POSTGRES_USER", "recallai")
+    db_pass = os.getenv("POSTGRES_PASSWORD", "recallai_dev")
+    db_name = os.getenv("POSTGRES_DB", "recallai")
+    config.set_main_option(
+        "sqlalchemy.url",
+        f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}",
+    )
 
 target_metadata = Base.metadata
 
