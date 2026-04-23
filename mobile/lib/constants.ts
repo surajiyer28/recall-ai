@@ -1,4 +1,4 @@
-export const API_BASE_URL = "https://recallai-api-225823353007.us-central1.run.app/api/v1";
+export const API_BASE_URL = "http://localhost:8080/api/v1";
 
 export const DarkColors = {
   primary: "#3b82f6", // blue-500
